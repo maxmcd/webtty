@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -86,6 +87,7 @@ func runHost() (err error) {
 		d.OnOpen = func() {
 			// fmt.Printf("Data channel '%s'-'%d'-'%d' open. This is the host\n", d.Label, d.ID, d.MaxPacketLifeTime)
 			fmt.Println("Data channel connected")
+			fmt.Print("\033[2J\033[H")
 			var err error
 			ptmx, err = pty.Start(cmd)
 
@@ -101,15 +103,23 @@ func runHost() (err error) {
 					os.Exit(0)
 				}
 			}()
+			oldState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
+			if err != nil {
+				panic(err)
+			}
+			defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldState) }()
+			go func() { _, _ = io.Copy(ptmx, os.Stdin) }()
 
 			buf := make([]byte, 1024)
 			for {
 				nr, err := ptmx.Read(buf)
 				if err != nil {
 					er := d.Send(datachannel.PayloadString{Data: []byte("quit")})
+					terminal.Restore(int(os.Stdin.Fd()), oldState)
 					glog.Error(er)
-					glog.Fatal(err)
+					os.Exit(0)
 				}
+				os.Stdout.Write(buf[0:nr])
 				err = d.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
 				if err != nil {
 					glog.Fatal(err)
@@ -122,7 +132,7 @@ func runHost() (err error) {
 		d.Onmessage = func(payload datachannel.Payload) {
 			switch p := payload.(type) {
 			case *datachannel.PayloadString:
-				fmt.Printf("Message '%s' from DataChannel '%s' payload '%s'\n", p.PayloadType().String(), d.Label, string(p.Data))
+				// fmt.Printf("Message '%s' from DataChannel '%s' payload '%s'\n", p.PayloadType().String(), d.Label, string(p.Data))
 				data := string(p.Data)
 				if len(data) > 4 && data[:4] == "size" {
 					coords := strings.Split(data[5:], ",")
@@ -248,7 +258,7 @@ func runClient(offerString string) (err error) {
 			}
 		}()
 		ch <- syscall.SIGWINCH // Initial resize.
-
+		fmt.Print("\033[2J\033[H")
 		buf := make([]byte, 1024)
 		for {
 			nr, err := os.Stdin.Read(buf)
