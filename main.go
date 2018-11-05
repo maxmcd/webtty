@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -123,7 +124,7 @@ func runHost() (err error) {
 			case *datachannel.PayloadString:
 				fmt.Printf("Message '%s' from DataChannel '%s' payload '%s'\n", p.PayloadType().String(), d.Label, string(p.Data))
 				data := string(p.Data)
-				if data[:4] == "size" {
+				if len(data) > 4 && data[:4] == "size" {
 					coords := strings.Split(data[5:], ",")
 					out := [4]int{}
 					fmt.Println(coords)
@@ -142,8 +143,27 @@ func runHost() (err error) {
 					if err != nil {
 						glog.Error(err)
 					}
-
 				}
+				if len(data) > 2 && data[:2] == `["` {
+					var msg []string
+					json.Unmarshal(p.Data, &msg)
+					if msg[0] == "stdin" {
+						_, err := ptmx.Write([]byte(msg[1]))
+						if err != nil {
+							log.Fatal(err)
+						}
+					}
+					if msg[0] == "set_size" {
+						// TODO: error checking, everywhere
+						var size []int
+						json.Unmarshal(p.Data, &size)
+						ws, _ := pty.GetsizeFull(ptmx)
+						ws.Rows = uint16(size[1])
+						ws.Cols = uint16(size[2])
+						pty.Setsize(ptmx, ws)
+					}
+				}
+
 				// _, err := stdinWriter.Write(p.Data)
 				// log.Println(err)
 			case *datachannel.PayloadBinary:
