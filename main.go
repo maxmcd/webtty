@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -39,15 +38,15 @@ func main() {
 	if len(offerString) == 0 {
 		err := runHost()
 		if err != nil {
-			glog.Fatal(err)
+			glog.Error(err)
 		}
 	} else {
 		err := runClient(offerString)
 		if err != nil {
-			glog.Fatal(err)
+			glog.Error(err)
 		}
 	}
-
+	resumeTerminal()
 }
 
 func createPeerConnection() (pc *webrtc.RTCPeerConnection, err error) {
@@ -63,133 +62,164 @@ func createPeerConnection() (pc *webrtc.RTCPeerConnection, err error) {
 		return
 	}
 	pc.OnICEConnectionStateChange = func(connectionState ice.ConnectionState) {
-		// glog.Info("ICE Connection State has changed: %s\n", connectionState.String())
+		glog.Infof("ICE Connection State has changed: %s\n", connectionState.String())
 	}
 	return
 }
+
+var ptmx *os.File
+
+func hostDataChannelOnOpen(dc *webrtc.RTCDataChannel, errChan chan error) func() {
+	return func() {
+
+		// find the control sequence to resume terminal state from earlier
+		clearTerminal()
+
+		cmd := exec.Command("bash")
+		var err error
+		ptmx, err = pty.Start(cmd)
+
+		if err != nil {
+			glog.Error(err)
+			errChan <- err
+			return
+		}
+
+		_, err = terminal.MakeRaw(int(os.Stdin.Fd()))
+		if err != nil {
+			glog.Error(err)
+			errChan <- err
+			return
+		}
+		go func() { _, _ = io.Copy(ptmx, os.Stdin) }()
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for range c {
+				dc.Send(datachannel.PayloadString{Data: []byte("quit")})
+				glog.Error("Sigint")
+				errChan <- nil
+			}
+		}()
+
+		buf := make([]byte, 1024)
+		for {
+			nr, err := ptmx.Read(buf)
+			if err != nil {
+				// TODO: check for EOF
+				glog.Error(err)
+				errChan <- err
+				return
+			}
+			os.Stdout.Write(buf[0:nr])
+			err = dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
+			if err != nil {
+				glog.Error(err)
+				errChan <- err
+				return
+			}
+		}
+	}
+}
+
+func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Payload) {
+	return func(payload datachannel.Payload) {
+		switch p := payload.(type) {
+		case *datachannel.PayloadString:
+			data := string(p.Data)
+			if len(data) > 4 && data[:4] == "size" {
+				coords := strings.Split(data[5:], ",")
+				out := [4]int{}
+				for i, n := range coords {
+					num, err := strconv.Atoi(n)
+					if err != nil {
+						glog.Error(err)
+						errChan <- err
+					}
+					out[i] = num
+				}
+				time.Sleep(time.Millisecond * 100)
+				err := pty.Setsize(ptmx, &pty.Winsize{
+					Rows: uint16(out[0]),
+					Cols: uint16(out[1]),
+					X:    uint16(out[2]),
+					Y:    uint16(out[3]),
+				})
+				if err != nil {
+					glog.Error(err)
+					// errChan <- err
+				}
+			}
+			if len(data) > 2 && data[:2] == `["` {
+				var msg []string
+				_ = json.Unmarshal(p.Data, &msg)
+				if msg[0] == "stdin" {
+					_, err := ptmx.Write([]byte(msg[1]))
+					if err != nil {
+						glog.Error(err)
+						errChan <- err
+					}
+				}
+				if msg[0] == "set_size" {
+					// TODO: error checking, everywhere
+					var size []int
+					_ = json.Unmarshal(p.Data, &size)
+					ws, err := pty.GetsizeFull(ptmx)
+					if err != nil {
+						glog.Error(err)
+						errChan <- err
+					}
+					ws.Rows = uint16(size[1])
+					ws.Cols = uint16(size[2])
+					err = pty.Setsize(ptmx, ws)
+					if err != nil {
+						glog.Error(err)
+						errChan <- err
+					}
+				}
+			}
+
+		case *datachannel.PayloadBinary:
+			_, err := ptmx.Write(p.Data)
+			if err != nil {
+				glog.Error(err)
+				errChan <- err
+			}
+		default:
+			fmt.Printf("Message '%s' from DataChannel '%s' no payload \n", p.PayloadType().String())
+		}
+	}
+}
+
+func hostOnDataChannel(errChan chan error) func(dc *webrtc.RTCDataChannel) {
+	return func(dc *webrtc.RTCDataChannel) {
+		hostDc = dc
+		fmt.Println("GOT DATA CHANNEL")
+		dc.Lock()
+		defer dc.Unlock()
+		dc.OnOpen = hostDataChannelOnOpen(dc, errChan)
+		dc.Onmessage = hostDataChannelOnMessage(errChan)
+	}
+}
+
+var hostDc *webrtc.RTCDataChannel
 
 func runHost() (err error) {
 	fmt.Println("Setting up WebRTTY connection.\n")
 
 	pc, err := createPeerConnection()
 	if err != nil {
+		glog.Error(err)
 		return
 	}
-	// Register data channel creation handling
-	pc.OnDataChannel = func(d *webrtc.RTCDataChannel) {
-
-		d.Lock()
-		defer d.Unlock()
-		cmd := exec.Command("bash")
-
-		var ptmx *os.File
-		// Register channel opening handling
-		d.OnOpen = func() {
-			// fmt.Printf("Data channel '%s'-'%d'-'%d' open. This is the host\n", d.Label, d.ID, d.MaxPacketLifeTime)
-			fmt.Println("Data channel connected")
-			fmt.Print("\033[2J\033[H")
-			var err error
-			ptmx, err = pty.Start(cmd)
-
-			if err != nil {
-				glog.Fatal(err)
-			}
-
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, os.Interrupt)
-			go func() {
-				for range c {
-					d.Send(datachannel.PayloadString{Data: []byte("quit")})
-					os.Exit(0)
-				}
-			}()
-			oldState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
-			if err != nil {
-				panic(err)
-			}
-			defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldState) }()
-			go func() { _, _ = io.Copy(ptmx, os.Stdin) }()
-
-			buf := make([]byte, 1024)
-			for {
-				nr, err := ptmx.Read(buf)
-				if err != nil {
-					er := d.Send(datachannel.PayloadString{Data: []byte("quit")})
-					terminal.Restore(int(os.Stdin.Fd()), oldState)
-					glog.Error(er)
-					os.Exit(0)
-				}
-				os.Stdout.Write(buf[0:nr])
-				err = d.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
-				if err != nil {
-					glog.Fatal(err)
-				}
-			}
-
-		}
-		// stdinWriter := cmd.Stdin.(io.Writer)
-		// Register message handling
-		d.Onmessage = func(payload datachannel.Payload) {
-			switch p := payload.(type) {
-			case *datachannel.PayloadString:
-				// fmt.Printf("Message '%s' from DataChannel '%s' payload '%s'\n", p.PayloadType().String(), d.Label, string(p.Data))
-				data := string(p.Data)
-				if len(data) > 4 && data[:4] == "size" {
-					coords := strings.Split(data[5:], ",")
-					out := [4]int{}
-					fmt.Println(coords)
-					for i, n := range coords {
-						num, err := strconv.Atoi(n)
-						check(err)
-						out[i] = num
-					}
-					time.Sleep(time.Millisecond * 100)
-					err := pty.Setsize(ptmx, &pty.Winsize{
-						Rows: uint16(out[0]),
-						Cols: uint16(out[1]),
-						X:    uint16(out[2]),
-						Y:    uint16(out[3]),
-					})
-					if err != nil {
-						glog.Error(err)
-					}
-				}
-				if len(data) > 2 && data[:2] == `["` {
-					var msg []string
-					json.Unmarshal(p.Data, &msg)
-					if msg[0] == "stdin" {
-						_, err := ptmx.Write([]byte(msg[1]))
-						if err != nil {
-							log.Fatal(err)
-						}
-					}
-					if msg[0] == "set_size" {
-						// TODO: error checking, everywhere
-						var size []int
-						json.Unmarshal(p.Data, &size)
-						ws, _ := pty.GetsizeFull(ptmx)
-						ws.Rows = uint16(size[1])
-						ws.Cols = uint16(size[2])
-						pty.Setsize(ptmx, ws)
-					}
-				}
-
-				// _, err := stdinWriter.Write(p.Data)
-				// log.Println(err)
-			case *datachannel.PayloadBinary:
-				_, err := ptmx.Write(p.Data)
-				if err != nil {
-					log.Fatal(err)
-				}
-			default:
-				fmt.Printf("Message '%s' from DataChannel '%s' no payload \n", p.PayloadType().String(), d.Label)
-			}
-		}
-	}
+	errChan := make(chan error, 1)
+	pc.OnDataChannel = hostOnDataChannel(errChan)
 
 	// Create an offer to send to the browser
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
+		glog.Error(err)
 		return
 	}
 
@@ -198,7 +228,11 @@ func runHost() (err error) {
 	fmt.Printf("webrtty %s\n\n", encodeOffer(offer.Sdp))
 	fmt.Println("When you have the answer, paste it below and hit enter:")
 	// Wait for the answer to be pasted
-	sd := mustReadStdin()
+	sd, err := mustReadStdin()
+	if err != nil {
+		glog.Error(err)
+		return
+	}
 	fmt.Println("Answer recieved, connecting...")
 
 	// Set the remote SessionDescription
@@ -210,39 +244,37 @@ func runHost() (err error) {
 	// Apply the answer as the remote description
 	err = pc.SetRemoteDescription(answer)
 	if err != nil {
+		glog.Error(err)
 		return
 	}
 
-	select {}
+	oldTerminalState, err := terminal.GetState(int(os.Stdin.Fd()))
+	if err != nil {
+		glog.Error(err)
+		return
+	}
+	// Wait to quit
+	err = <-errChan
+	if hostDc != nil {
+		// TODO: check dc state?
+		hostDc.Send(datachannel.PayloadString{Data: []byte("quit")})
+	}
+	if err := terminal.Restore(int(os.Stdin.Fd()), oldTerminalState); err != nil {
+		glog.Error(err)
+	}
+
+	return err
 }
 
-func runClient(offerString string) (err error) {
-	pc, err := createPeerConnection()
-	if err != nil {
-		return
-	}
-	// Set the remote SessionDescription
-	maxPacketLifeTime := uint16(1000)
-	var ordered bool = true
-	dataChannel, err := pc.CreateDataChannel("data", &webrtc.RTCDataChannelInit{
-		Ordered:           &ordered,
-		MaxPacketLifeTime: &maxPacketLifeTime,
-	})
-	if err != nil {
-		return
-	}
-
-	dataChannel.Lock()
-	var oldState *terminal.State
-	dataChannel.OnOpen = func() {
-		fmt.Printf("Data channel '%s'-'%d'='%d' open.\n", dataChannel.Label, dataChannel.ID, *dataChannel.MaxPacketLifeTime)
-		var err error
-		oldState, err = terminal.MakeRaw(int(os.Stdin.Fd()))
-
+func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func() {
+	return func() {
+		fmt.Printf("Data channel '%s'-'%d'='%d' open.\n", dc.Label, dc.ID, *dc.MaxPacketLifeTime)
+		oldTerminalState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
-			panic(err)
+			glog.Error(err)
+			errChan <- err
 		}
-		defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldState) }() // Best effort.
+		defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldTerminalState) }() // Best effort.
 
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, syscall.SIGWINCH)
@@ -254,47 +286,79 @@ func runClient(offerString string) (err error) {
 				}
 				size := fmt.Sprintf("size,%d,%d,%d,%d",
 					winSize.Rows, winSize.Cols, winSize.X, winSize.Y)
-				dataChannel.Send(datachannel.PayloadString{Data: []byte(size)})
+				dc.Send(datachannel.PayloadString{Data: []byte(size)})
 			}
 		}()
 		ch <- syscall.SIGWINCH // Initial resize.
-		fmt.Print("\033[2J\033[H")
+		clearTerminal()
 		buf := make([]byte, 1024)
 		for {
 			nr, err := os.Stdin.Read(buf)
 			if err != nil {
-				glog.Fatal(err)
+				glog.Error(err)
+				errChan <- err
 			}
-			err = dataChannel.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
+			err = dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
 			if err != nil {
-				glog.Fatal(err)
+				glog.Error(err)
+				errChan <- err
 			}
 		}
 	}
+}
 
-	// Register the Onmessage to handle incoming messages
-	dataChannel.Onmessage = func(payload datachannel.Payload) {
+func clientDataChannelOnMessage(errChan chan error, oldTerminalState *terminal.State) func(payload datachannel.Payload) {
+	return func(payload datachannel.Payload) {
 		switch p := payload.(type) {
 		case *datachannel.PayloadString:
-			fmt.Printf("Message '%s' from DataChannel '%s' payload '%s'\n", p.PayloadType().String(), dataChannel.Label, string(p.Data))
+			fmt.Printf("Message '%s' from DataChannel payload '%s'\n", p.PayloadType().String(), string(p.Data))
 			if string(p.Data) == "quit" {
-				terminal.Restore(int(os.Stdin.Fd()), oldState)
-				os.Exit(0)
+				terminal.Restore(int(os.Stdin.Fd()), oldTerminalState)
+				errChan <- nil
 			}
 		case *datachannel.PayloadBinary:
 			f := bufio.NewWriter(os.Stdout)
 			f.Write(p.Data)
 			f.Flush()
-			// fmt.Printf("Message '%s' from DataChannel '%s' payload '% 02x'\n", p.PayloadType().String(), dataChannel.Label, p.Data)
+			// fmt.Printf("Message '%s' from DataChannel '%s' payload '% 02x'\n", p.PayloadType().String(), dc.Label, p.Data)
 		default:
-			fmt.Printf("Message '%s' from DataChannel '%s' no payload \n", p.PayloadType().String(), dataChannel.Label)
+			fmt.Printf("Message '%s' from DataChannel no payload \n", p.PayloadType().String())
 		}
 	}
+}
 
-	dataChannel.Unlock()
+func runClient(offerString string) (err error) {
+	pc, err := createPeerConnection()
+	if err != nil {
+		glog.Error(err)
+		return
+	}
+	// Set the remote SessionDescription
+	maxPacketLifeTime := uint16(1000)
+	var ordered bool = true
+	dc, err := pc.CreateDataChannel("data", &webrtc.RTCDataChannelInit{
+		Ordered:           &ordered,
+		MaxPacketLifeTime: &maxPacketLifeTime,
+	})
+	if err != nil {
+		glog.Error(err)
+		return
+	}
+
+	errChan := make(chan error, 1)
+	oldTerminalState, err := terminal.GetState(int(os.Stdin.Fd()))
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	dc.Lock()
+	dc.OnOpen = clientDataChannelOnOpen(errChan, dc)
+	dc.Onmessage = clientDataChannelOnMessage(errChan, oldTerminalState)
+	dc.Unlock()
 
 	sdp, err := decodeOffer(offerString)
 	if err != nil {
+		glog.Error(err)
 		return
 	}
 	offer := webrtc.RTCSessionDescription{
@@ -303,18 +367,20 @@ func runClient(offerString string) (err error) {
 	}
 
 	if err = pc.SetRemoteDescription(offer); err != nil {
+		glog.Error(err)
 		return err
 	}
 	// Sets the LocalDescription, and starts our UDP listeners
 	answer, err := pc.CreateAnswer(nil)
 	if err != nil {
+		glog.Error(err)
 		return
 	}
 	// Get the LocalDescription and take it to base64 so we can paste in browser
 
 	fmt.Println("Answer created. Send the following answer to the host:\n")
 	fmt.Println(encodeOffer(answer.Sdp))
-	select {}
+	return <-errChan
 }
 
 // check is used to panic in an error occurs.
@@ -325,6 +391,7 @@ func check(err error) {
 }
 
 func encodeOffer(offer string) string {
+	fmt.Println(offer)
 	var b bytes.Buffer
 	w := zlib.NewWriter(&b)
 	w.Write([]byte(offer))
@@ -332,7 +399,14 @@ func encodeOffer(offer string) string {
 	return base64.StdEncoding.EncodeToString(b.Bytes())
 }
 func decodeOffer(offer string) (out string, err error) {
-	sd, err := base64.StdEncoding.DecodeString(offer)
+	var sd []byte
+	for i := 0; i < 2; i++ {
+		sd, err = base64.StdEncoding.DecodeString(offer)
+		if err != nil {
+			// copy and paste is hard
+			offer += "="
+		}
+	}
 	if err != nil {
 		return
 	}
@@ -350,10 +424,20 @@ func decodeOffer(offer string) (out string, err error) {
 	return
 }
 
-func mustReadStdin() string {
+func mustReadStdin() (string, error) {
 	var input string
 	fmt.Scanln(&input)
-	sd, err := decodeOffer(input)
-	check(err)
-	return sd
+	return decodeOffer(input)
+}
+
+func clearTerminal() {
+	// http://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
+	// fmt.Print("\033[s")  // save cursor state
+	fmt.Print("\033[2J") // clear terminal
+	fmt.Print("\033[H")  // move cursor to 0,0
+}
+
+func resumeTerminal() {
+	// http://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
+	// fmt.Print("\033[u")
 }
