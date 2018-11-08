@@ -111,14 +111,14 @@ func runClient(offerString string) (err error) {
 	dc.Onmessage = clientDataChannelOnMessage(errChan, oldTerminalState)
 	dc.Unlock()
 
-	sdp, err := decodeOffer(offerString)
+	sessDesc, err := decodeOffer(offerString)
 	if err != nil {
 		glog.Error(err)
 		return
 	}
 	offer := webrtc.RTCSessionDescription{
 		Type: webrtc.RTCSdpTypeOffer,
-		Sdp:  sdp.Sdp,
+		Sdp:  sessDesc.Sdp,
 	}
 
 	if err = pc.SetRemoteDescription(offer); err != nil {
@@ -131,9 +131,15 @@ func runClient(offerString string) (err error) {
 		glog.Error(err)
 		return
 	}
-	// Get the LocalDescription and take it to base64 so we can paste in browser
-
-	fmt.Printf("Answer created. Send the following answer to the host:\n\n")
-	fmt.Println(encodeOffer(answer.Sdp))
+	encodedAnswer := encodeOffer(sessionDescription{Sdp: answer.Sdp})
+	if sessDesc.TenKbSiteLoc == "" {
+		// Get the LocalDescription and take it to base64 so we can paste in browser
+		fmt.Printf("Answer created. Send the following answer to the host:\n\n")
+		fmt.Println(encodedAnswer)
+	} else {
+		if err := create10kbFile(sessDesc.TenKbSiteLoc, encodedAnswer); err != nil {
+			return err
+		}
+	}
 	return <-errChan
 }

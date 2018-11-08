@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/golang/glog"
 	"github.com/pions/webrtc"
@@ -12,15 +11,16 @@ import (
 
 func main() {
 	flag.Set("logtostderr", "true")
+	oneWay := flag.Bool("o", false, "One-way connection with no response needed.")
 	flag.Parse()
-	fmt.Println(os.Args)
+	args := flag.Args()
 	var offerString string
-	if len(os.Args) > 1 {
-		offerString = os.Args[1]
+	if len(args) > 0 {
+		offerString = args[len(args)-1]
 	}
 
 	if len(offerString) == 0 {
-		err := runHost()
+		err := runHost(*oneWay)
 		if err != nil {
 			glog.Error(err)
 		}

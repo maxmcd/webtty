@@ -10,11 +10,12 @@ import (
 	"time"
 )
 
-var tenKbHost string = "https://up.10kb.site/"
+var tenKbUpUrl string = "https://up.10kb.site/"
+var tenKbUrl string = "https://www.10kb.site/"
 
 func create10kbFile(path, body string) error {
 	resp, err := http.Post(
-		tenKbHost+path, "text/plain", bytes.NewBuffer([]byte(body)))
+		tenKbUpUrl+path, "text/plain", bytes.NewBuffer([]byte(body)))
 	if err != nil {
 		return err
 	}
@@ -27,9 +28,9 @@ func create10kbFile(path, body string) error {
 }
 
 func read10kbFile(path string) (int, string, error) {
-	resp, err := http.Get(fmt.Sprintf("%s%s", tenKbHost, path))
+	resp, err := http.Get(fmt.Sprintf("%s%s", tenKbUrl, path))
 	if err != nil {
-		return resp.StatusCode, "", err
+		return 0, "", err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusOK {
@@ -44,6 +45,7 @@ func read10kbFile(path string) (int, string, error) {
 
 func pollForResponse(path string) (body string, err error) {
 	var sc int
+	// timeout?
 	for {
 		sc, body, err = read10kbFile(path)
 		if err != nil {

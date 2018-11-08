@@ -94,7 +94,7 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 					_, err := ptmx.Write([]byte(msg[1]))
 					if err != nil {
 						glog.Error(err)
-						errChan <- err
+						// errChan <- err
 					}
 					return
 				}
@@ -154,7 +154,7 @@ func mustReadStdin() (string, error) {
 	return sd.Sdp, err
 }
 
-func runHost() (err error) {
+func runHost(oneWay bool) (err error) {
 	fmt.Printf("Setting up WebRTTY connection.\n\n")
 
 	pc, err := createPeerConnection()
@@ -171,18 +171,48 @@ func runHost() (err error) {
 		glog.Error(err)
 		return
 	}
+	sessDesc := sessionDescription{
+		Sdp: offer.Sdp,
+	}
+	if oneWay == true {
+		sessDesc.TenKbSiteLoc = randSeq(100)
+	}
 
 	// Output the offer in base64 so we can paste it in browser
-	fmt.Printf("Connection ready. To connect to this session run:\n\n")
-	fmt.Printf("webrtty %s\n\n", encodeOffer(offer.Sdp))
-	fmt.Println("When you have the answer, paste it below and hit enter:")
-	// Wait for the answer to be pasted
-	sd, err := mustReadStdin()
-	if err != nil {
-		glog.Error(err)
-		return
+	fmt.Printf("Connection ready. Here is your connection data:\n\n")
+	fmt.Printf("%s\n\n", encodeOffer(sessDesc))
+	if oneWay == true {
+		fmt.Printf(`Paste it in the terminal after the webrtty command` +
+			"\nOr in a browser: https://maxmcd.github.io/webrtty/#DATA\n\n")
+	} else {
+		fmt.Printf(`Paste it in the terminal after the webrtty command` +
+			"\nOr in a browser: https://maxmcd.github.io/webrtty/\n\n")
 	}
-	fmt.Println("Answer recieved, connecting...")
+
+	var sd string
+	if oneWay == false {
+		fmt.Println("When you have the answer, paste it below and hit enter:")
+		// Wait for the answer to be pasted
+		sd, err = mustReadStdin()
+		if err != nil {
+			glog.Error(err)
+			return
+		}
+		fmt.Println("Answer recieved, connecting...")
+	} else {
+		body, err := pollForResponse(sessDesc.TenKbSiteLoc)
+		fmt.Println(body, sessDesc.TenKbSiteLoc)
+		if err != nil {
+			glog.Error(err)
+			return err
+		}
+		sessDesc, err := decodeOffer(body)
+		if err != nil {
+			glog.Error(err)
+			return err
+		}
+		sd = sessDesc.Sdp
+	}
 
 	// Set the remote SessionDescription
 	answer := webrtc.RTCSessionDescription{

@@ -6,7 +6,7 @@ import (
 
 func TestEncodeDecode(t *testing.T) {
 	sdp := "something"
-	offer := encodeOffer(sdp)
+	offer := encodeOffer(sessionDescription{Sdp: sdp})
 	sd, err := decodeOffer(offer)
 	if err != nil {
 		t.Error(err)

@@ -8,11 +8,8 @@ import (
 	"io/ioutil"
 )
 
-func encodeOffer(offer string) string {
-	sd := sessionDescription{
-		Sdp: offer,
-	}
-	bytes, _ := json.Marshal(sd)
+func encodeOffer(offer sessionDescription) string {
+	bytes, _ := json.Marshal(offer)
 	return encodeBytes(bytes)
 }
 

@@ -1,6 +1,43 @@
+encodeOffer = data =>
+  btoa(
+    pako.deflate(JSON.stringify({ Sdp: data }), {
+      to: "string"
+    })
+  );
+
+decodeOffer = data => JSON.parse(pako.inflate(atob(data), { to: "string" }));
+
+create10kbFile = (path, body) =>
+  fetch("https://up.10kb.site/" + path, {
+    method: "POST",
+    body: body
+  })
+    .then(resp => resp.text())
+    .then(resp => {});
+
+startSession = data => {
+  sessionDesc = decodeOffer(data);
+  if (sessionDesc.TenKbSiteLoc != "") {
+    TenKbSiteLoc = sessionDesc.TenKbSiteLoc;
+  }
+  pc
+    .setRemoteDescription(
+      new RTCSessionDescription({
+        type: "offer",
+        sdp: sessionDesc.Sdp
+      })
+    )
+    .catch(log);
+  pc
+    .createAnswer()
+    .then(d => pc.setLocalDescription(d))
+    .catch(log);
+};
+
 Terminal.applyAddon(attach);
 Terminal.applyAddon(fullscreen);
 Terminal.applyAddon(fit);
+var TenKbSiteLoc = null;
 
 var term = new Terminal();
 term.open(document.getElementById("terminal"));
@@ -10,21 +47,6 @@ window.onresize = () => {
   term.fit();
 };
 term.write("Welcome to the WebRTTY web client.\n\r");
-term.write("Run webrtty and paste the offer message below:\n\r");
-let firstInput = false;
-term.on("data", data => {
-  if (!firstInput) {
-    term.reset();
-    try {
-      startSession(data);
-    } catch (err) {
-      term.write(`There was an error with the offer: ${data}\n\r`);
-      term.write("Try entering the message again: ");
-      return;
-    }
-    firstInput = true;
-  }
-});
 
 let pc = new RTCPeerConnection({
   iceServers: [
@@ -33,6 +55,7 @@ let pc = new RTCPeerConnection({
     }
   ]
 });
+
 
 let log = msg => {
   term.write(msg + "\n\r");
@@ -52,10 +75,15 @@ pc.onsignalingstatechange = e => log(pc.signalingState);
 pc.oniceconnectionstatechange = e => log(pc.iceConnectionState);
 pc.onicecandidate = event => {
   if (event.candidate === null) {
-    term.write(
-      "Answer created. Send the following answer to the host:\n\r\n\r"
-    );
-    term.write(encodeOffer(pc.localDescription.sdp));
+    if (TenKbSiteLoc == null) {
+      term.write(
+        "Answer created. Send the following answer to the host:\n\r\n\r"
+      );
+      term.write(encodeOffer(pc.localDescription.sdp));
+    } else {
+      term.write("Waiting for connection...");
+      create10kbFile(TenKbSiteLoc, encodeOffer(pc.localDescription.sdp));
+    }
   }
 };
 
@@ -70,29 +98,33 @@ window.sendMessage = () => {
   sendChannel.send(message);
 };
 
-startSession = data => {
-  pc
-    .setRemoteDescription(
-      new RTCSessionDescription({
-        type: "offer",
-        sdp: decodeOffer(data)
-      })
-    )
-    .catch(log);
-  pc
-    .createAnswer()
-    .then(d => pc.setLocalDescription(d))
-    .catch(log);
-};
 
-encodeOffer = data => (
-  return btoa(
-    pako.deflate(JSON.stringify({ Sdp: data }), {
-      to: "string"
-    })
-  );
-);
+let firstInput = false;
+urlData = window.location.hash.substr(1);
+console.log(urlData);
+if (urlData != "") {
+  try {
+    startSession(urlData);
+    firstInput = true;
+  } catch (err) {
+    console.log(err);
+  }
+}
 
-decodeOffer = data => (
-  JSON.parse(pako.inflate(atob(data), { to: "string" })).Sdp;
-);
+if (firstInput == false) {
+  term.write("Run webrtty and paste the offer message below:\n\r");
+}
+
+term.on("data", data => {
+  if (!firstInput) {
+    term.reset();
+    try {
+      startSession(data);
+    } catch (err) {
+      term.write(`There was an error with the offer: ${data}\n\r`);
+      term.write("Try entering the message again: ");
+      return;
+    }
+    firstInput = true;
+  }
+});
