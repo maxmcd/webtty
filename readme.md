@@ -24,3 +24,5 @@ webrtty eJysktFumzAUhu+ReIfzAjAbjI2PxEUIZEqVtemSTNvuXEwSpmAsY9rt7SfSrhfVNGlS5Rvb
 When you have the answer, paste it below and hit enter:
 ```
 From there you can pase the command to a different machine, or enter the base64 string into https://maxmcd.github.io/webrtty/
+
+https://tools.ietf.org/id/draft-ietf-rtcweb-sdp-08.html
