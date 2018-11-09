@@ -1,13 +1,27 @@
-encodeOffer = data =>
-  btoa(
-    pako.deflate(JSON.stringify({ Sdp: data }), {
-      to: "string"
-    })
-  );
+import Terminal from "xterm/src/xterm.ts";
+import * as attach from "./attach.ts";
+import * as fullscreen from "xterm/src/addons/fullscreen/fullscreen.ts";
+import * as fit from "xterm/src/addons/fit/fit.ts";
+import pako from "pako";
+import aesjs from "aes-js";
 
-decodeOffer = data => JSON.parse(pako.inflate(atob(data), { to: "string" }));
+import "xterm/dist/xterm.css";
+import "xterm/dist/addons/fullscreen/fullscreen.css";
+import bs58 from "bs58";
+import { Buffer } from "safe-buffer";
+window.pako = pako;
 
-create10kbFile = (path, body) =>
+Terminal.applyAddon(attach);
+Terminal.applyAddon(fullscreen);
+Terminal.applyAddon(fit);
+
+const encodeOffer = (data: string) =>
+  bs58.encode(Buffer.from(pako.deflate(JSON.stringify({ Sdp: data }))));
+
+const decodeOffer = (data: string): string =>
+  JSON.parse(pako.inflate(bs58.decode(data), { to: "string" }));
+
+const create10kbFile = (path: string, body: string): void =>
   fetch("https://up.10kb.site/" + path, {
     method: "POST",
     body: body
@@ -15,8 +29,8 @@ create10kbFile = (path, body) =>
     .then(resp => resp.text())
     .then(resp => {});
 
-startSession = data => {
-  sessionDesc = decodeOffer(data);
+const startSession = (data: string) => {
+  const sessionDesc = decodeOffer(data);
   if (sessionDesc.TenKbSiteLoc != "") {
     TenKbSiteLoc = sessionDesc.TenKbSiteLoc;
   }
@@ -34,12 +48,9 @@ startSession = data => {
     .catch(log);
 };
 
-Terminal.applyAddon(attach);
-Terminal.applyAddon(fullscreen);
-Terminal.applyAddon(fit);
-var TenKbSiteLoc = null;
+let TenKbSiteLoc = null;
 
-var term = new Terminal();
+const term = new Terminal();
 term.open(document.getElementById("terminal"));
 term.toggleFullScreen();
 term.fit();
@@ -56,7 +67,6 @@ let pc = new RTCPeerConnection({
   ]
 });
 
-
 let log = msg => {
   term.write(msg + "\n\r");
 };
@@ -66,7 +76,7 @@ sendChannel.onclose = () => console.log("sendChannel has closed");
 sendChannel.onopen = () => {
   term.reset();
   term.terminadoAttach(sendChannel);
-  sendChannel.send(JSON.stringify(["stdin", term.rows, term.cols]));
+  sendChannel.send(JSON.stringify(["set_size", term.rows, term.cols]));
   console.log("sendChannel has opened");
 };
 // sendChannel.onmessage = e => {}
@@ -98,9 +108,8 @@ window.sendMessage = () => {
   sendChannel.send(message);
 };
 
-
-let firstInput = false;
-urlData = window.location.hash.substr(1);
+let firstInput: boolean = false;
+const urlData = window.location.hash.substr(1);
 console.log(urlData);
 if (urlData != "") {
   try {
@@ -121,6 +130,7 @@ term.on("data", data => {
     try {
       startSession(data);
     } catch (err) {
+      console.log(err);
       term.write(`There was an error with the offer: ${data}\n\r`);
       term.write("Try entering the message again: ");
       return;

@@ -1,28 +1,45 @@
 # WebRTTY
 
-WebRTTY allows you to share a terminal session from your machine using WebRTC. You can share a server session with a different computer that also has WebRTTY installed, or you can open a WebRTTY session using this static page: https://maxmcd.github.io/webrtty/
+WebRTTY allows you to share a terminal session from your machine using WebRTC. You can pair with a friend without setting up a proxy server, debug servers behind NATs, and more. WebRTTY also works in-browser. You can connect to a WebRTTY session from this static page:  https://maxmcd.github.io/webrtty/
 
-WebRTTY uses a WebRTC DataChannel to send data between sources. The implementaiton is quite buggy at the moment, but it seems to work for the most part.
+### Status
 
-## Installation
+There are a handful of bugs to fix, but everything works pretty well at the moment. Please open an issue if you find a bug. 
+
+### Installation
 ```bash
 go get -u github.com/maxmcd/webrtty
 ```
-WebRTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for WebRTC communication. It currently requires OpenSSL. More here: https://github.com/pions/webrtc#install
+WebRTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for WebRTC communication. It currently requires OpenSSL to build. More here: https://github.com/pions/webrtc#install
 
-## Running
+### Running
 
-```bash
+```
 # On the host computer
 $ webrtty
-Setting up WebRTTY connection.
+Setting up a WebRTTY connection.
 
-Connection ready. To connect to this session run:
+Connection ready. Here is your connection data:
 
-webrtty eJysktFumzAUhu+ReIfzAjAbjI2PxEUIZEqVtemSTNvuXEwSpmAsY9rt7SfSrhfVNGlS5Rvb59f3HVvnsSBhMBQRSJqILBU8BZoxygRLmYD1Lay3DEh8XWEwFlEY+IIACQNVHDtzap11nfE4nlWUZBxIiTXHbIHJElcMU4n1CqsFSo6rFPMKS4FlilxgTnFR44ogEShLLAkKjkxgmeNqiQuBpMaMYEJRCKxzTCus6ll7csNksTzcVpsatPIqDPpCWXvpGuW7wYCEar/Zfdgt91vICCFh0BRvX6KKsfWTRdV4q8Zxvug7jc+4uWi0a5vH677xtlcWZxQ8tQ/ON9Gca87KmPYClCRsznVNG01Hp07YWbPZ6L4+fD7Y+laPf6r2SePd/ffKfNqsHw7fPur+x70qy/XNl5tx+3W573d3hznbKKM7rXyLk7avB6AwaQsJYTlQmcSU53HOYy4hSygl4H9ZOA+jh1NrWvf8FeQfuOSKS4UU78N7aS8XOYeExZLENJMxSyGTIpdX3OiOl5/glNbujdLZwfmX5H/1nwku3tnXGh0Nx+jVNP5lXH4HAAD//43T7sM=
+25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTMR34koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aLXb2M11kcUn9rzb4DX4KSaKB5PhszAiiCB2iHKugPUwhzCMd7JjYU2ZLWGHBnjCf1cujfMx4E1ZdZADDh1FaQ2njy6Chnmxhy68hKZh8HX3SqQKShEffyvptyun69c3cMBXBwq4eHZdrX86KMaQLFSCZaoPh8sLaRydPqiyHw9tYmAZ6GAFUQoju72SSPmT8sV3T4of4ZqCWm91EJfazmqVst8D9sxqj5HS9kYuBcn78Pa1gFY85hTehmHabQXh8XXouHyHp84yfWJqEQTAn7J8sGkH7SR4p8c24ohg2yfWbHSWzBD7Bv5Zz7MXmcDSzXMFpSzgqEtNKKokhqFmCHd6UXGEW4dCpAB37ANzBqsM4tn1YAfNny
+
+Paste it in the terminal after the webrtty command
+Or in a browser: https://maxmcd.github.io/webrtty/
 
 When you have the answer, paste it below and hit enter:
 ```
-From there you can pase the command to a different machine, or enter the base64 string into https://maxmcd.github.io/webrtty/
 
-https://tools.ietf.org/id/draft-ietf-rtcweb-sdp-08.html
+### Terminal Size
+
+Other terminal sharing tools have various fixes to deal with different terminal sizes from different users. WebRTTY just forces the use of the client session terminal size, so the host side of things can frequently render incorrectly. I think the easiest way to fix this would be to leverage `tmux` sessions and simply provide an option to proxy a shared `tmux` session instead of `bash`. Might add that at a later date. 
+
+### One-way Connections
+
+One-way connections can be enabled with the `-o` flag. A typical webrtc connection requires an SDP exchange between both parties. By default, WebRTTY will create an SDP offer and wait for you to enter the SDP answer. With the `-o` flag the initial offer is sent along with a public url that the receiver is expected to post their response to. This uses my service [10kb.site](https://www.10kb.site). The host then polls the url continually until it gets an answer.
+
+I think this somewhat violates the spirit of this tool because it relies on me to not snoop on connection details. However, one-way connections allow you to do very cool things. Eg: I can have a build server output a WebRTTY connection string on error and allow anyone to attach to the session.
+
+Maybe just encrypt the SDP and only allow the `-o` flag with a shared secret?
+
+Very open to any ideas on how to enable trusted one-way connections. Please open an issue or reach out if you have thoughts. For now, the `-o` flag will print a warning and link to this explanation. 
+

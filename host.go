@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 
-	"github.com/golang/glog"
 	"github.com/kr/pty"
+	"github.com/mitchellh/colorstring"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
 	"golang.org/x/crypto/ssh/terminal"
@@ -21,28 +22,34 @@ var (
 	hostDc *webrtc.RTCDataChannel
 )
 
+type HostConfig struct {
+	bashArgs []string
+	tmux     bool
+	oneWay   bool
+}
+
 func hostDataChannelOnOpen(dc *webrtc.RTCDataChannel, errChan chan error) func() {
 	return func() {
-
+		colorstring.Println("[bold]Terminal session started:")
 		clearTerminal()
 
-		cmd := exec.Command("bash")
+		cmd := exec.Command("bash", "-i")
 		var err error
 		ptmx, err = pty.Start(cmd)
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 			errChan <- err
 			return
 		}
 
 		if _, err = terminal.MakeRaw(int(os.Stdin.Fd())); err != nil {
-			glog.Error(err)
+			log.Println(err)
 			errChan <- err
 			return
 		}
 		go func() {
 			if _, err = io.Copy(ptmx, os.Stdin); err != nil {
-				glog.Error(err)
+				log.Println(err)
 			}
 		}()
 
@@ -50,7 +57,7 @@ func hostDataChannelOnOpen(dc *webrtc.RTCDataChannel, errChan chan error) func()
 		signal.Notify(c, os.Interrupt)
 		go func() {
 			for range c {
-				glog.Error("Sigint")
+				log.Println("Sigint")
 				errChan <- errors.New("sigint")
 			}
 		}()
@@ -59,18 +66,21 @@ func hostDataChannelOnOpen(dc *webrtc.RTCDataChannel, errChan chan error) func()
 		for {
 			nr, err := ptmx.Read(buf)
 			if err != nil {
-				// TODO: check for EOF
-				glog.Error(err)
+				if err == io.EOF {
+					err = nil
+				} else {
+					log.Println(err)
+				}
 				errChan <- err
 				return
 			}
 			if _, err = os.Stdout.Write(buf[0:nr]); err != nil {
-				glog.Error(err)
+				log.Println(err)
 				errChan <- err
 				return
 			}
 			if err = dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]}); err != nil {
-				glog.Error(err)
+				log.Println(err)
 				errChan <- err
 				return
 			}
@@ -91,9 +101,13 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 				var msg []string
 				_ = json.Unmarshal(p.Data, &msg)
 				if msg[0] == "stdin" {
+					toWrite := []byte(msg[1])
+					if len(toWrite) == 0 {
+						return
+					}
 					_, err := ptmx.Write([]byte(msg[1]))
 					if err != nil {
-						glog.Error(err)
+						log.Println(err)
 						// errChan <- err
 					}
 					return
@@ -103,7 +117,7 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 					_ = json.Unmarshal(p.Data, &size)
 					ws, err := pty.GetsizeFull(ptmx)
 					if err != nil {
-						glog.Error(err)
+						log.Println(err)
 						errChan <- err
 					}
 					ws.Rows = uint16(size[1])
@@ -115,7 +129,7 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 					}
 
 					if err = pty.Setsize(ptmx, ws); err != nil {
-						glog.Error(err)
+						log.Println(err)
 						errChan <- err
 					}
 					return
@@ -125,11 +139,11 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 		case *datachannel.PayloadBinary:
 			_, err := ptmx.Write(p.Data)
 			if err != nil {
-				glog.Error(err)
+				log.Println(err)
 				errChan <- err
 			}
 		default:
-			glog.Errorf(
+			log.Printf(
 				"Message with type %s from DataChannel has no payload",
 				p.PayloadType().String(),
 			)
@@ -155,11 +169,15 @@ func mustReadStdin() (string, error) {
 }
 
 func runHost(oneWay bool) (err error) {
-	fmt.Printf("Setting up WebRTTY connection.\n\n")
-
+	colorstring.Printf("[bold]Setting up a WebRTTY connection.\n\n")
+	if oneWay {
+		colorstring.Printf(
+			"Warning: One-way connections rely on a third party to connect. " +
+				"More info here: https://github.com/maxmcd/webrtty#one-way-connections\n\n")
+	}
 	pc, err := createPeerConnection()
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 	errChan := make(chan error, 1)
@@ -168,7 +186,7 @@ func runHost(oneWay bool) (err error) {
 	// Create an offer to send to the browser
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 	sessDesc := sessionDescription{
@@ -179,36 +197,30 @@ func runHost(oneWay bool) (err error) {
 	}
 
 	// Output the offer in base64 so we can paste it in browser
-	fmt.Printf("Connection ready. Here is your connection data:\n\n")
+	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
 	fmt.Printf("%s\n\n", encodeOffer(sessDesc))
-	if oneWay == true {
-		fmt.Printf(`Paste it in the terminal after the webrtty command` +
-			"\nOr in a browser: https://maxmcd.github.io/webrtty/#DATA\n\n")
-	} else {
-		fmt.Printf(`Paste it in the terminal after the webrtty command` +
-			"\nOr in a browser: https://maxmcd.github.io/webrtty/\n\n")
-	}
+	colorstring.Printf(`[bold]Paste it in the terminal after the webrtty command` +
+		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webrtty/\n\n")
 
 	var sd string
 	if oneWay == false {
-		fmt.Println("When you have the answer, paste it below and hit enter:")
+		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")
 		// Wait for the answer to be pasted
 		sd, err = mustReadStdin()
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 			return
 		}
 		fmt.Println("Answer recieved, connecting...")
 	} else {
 		body, err := pollForResponse(sessDesc.TenKbSiteLoc)
-		fmt.Println(body, sessDesc.TenKbSiteLoc)
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 			return err
 		}
 		sessDesc, err := decodeOffer(body)
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 			return err
 		}
 		sd = sessDesc.Sdp
@@ -223,13 +235,13 @@ func runHost(oneWay bool) (err error) {
 	// Apply the answer as the remote description
 	err = pc.SetRemoteDescription(answer)
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 
 	oldTerminalState, err := terminal.GetState(int(os.Stdin.Fd()))
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 	// Wait to quit
@@ -239,7 +251,7 @@ func runHost(oneWay bool) (err error) {
 		hostDc.Send(datachannel.PayloadString{Data: []byte("quit")})
 	}
 	if err := terminal.Restore(int(os.Stdin.Fd()), oldTerminalState); err != nil {
-		glog.Error(err)
+		log.Println(err)
 	}
 
 	return err

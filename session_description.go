@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"compress/zlib"
-	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
+
+	"github.com/btcsuite/btcutil/base58"
 )
 
 func encodeOffer(offer sessionDescription) string {
@@ -18,7 +19,7 @@ func encodeBytes(offer []byte) string {
 	w := zlib.NewWriter(&b)
 	w.Write(offer)
 	w.Close()
-	return base64.StdEncoding.EncodeToString(b.Bytes())
+	return base58.Encode(b.Bytes())
 }
 
 type sessionDescription struct {
@@ -27,19 +28,7 @@ type sessionDescription struct {
 }
 
 func decodeOffer(offer string) (sd sessionDescription, err error) {
-	var sdCompressed []byte
-	for i := 0; i < 2; i++ {
-		sdCompressed, err = base64.StdEncoding.DecodeString(offer)
-		if err != nil {
-			// copy and paste is hard
-			offer += "="
-		}
-		// TODO: if we're going to do this retry thing, at least
-		// check if the returning binary is text
-	}
-	if err != nil {
-		return
-	}
+	sdCompressed := base58.Decode(offer)
 	var b bytes.Buffer
 	b.Write(sdCompressed)
 	r, err := zlib.NewReader(&b)

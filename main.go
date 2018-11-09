@@ -2,16 +2,22 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"io/ioutil"
+	"log"
 
-	"github.com/golang/glog"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/ice"
 )
 
 func main() {
-	flag.Set("logtostderr", "true")
 	oneWay := flag.Bool("o", false, "One-way connection with no response needed.")
+	verbose := flag.Bool("v", false, "Verbose logging")
+	if *verbose {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+	} else {
+		log.SetFlags(0)
+		log.SetOutput(ioutil.Discard)
+	}
 	flag.Parse()
 	args := flag.Args()
 	var offerString string
@@ -22,12 +28,12 @@ func main() {
 	if len(offerString) == 0 {
 		err := runHost(*oneWay)
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 		}
 	} else {
 		err := runClient(offerString)
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 		}
 	}
 	resumeTerminal()
@@ -46,7 +52,7 @@ func createPeerConnection() (pc *webrtc.RTCPeerConnection, err error) {
 		return
 	}
 	pc.OnICEConnectionStateChange = func(connectionState ice.ConnectionState) {
-		glog.Infof("ICE Connection State has changed: %s\n", connectionState.String())
+		log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
 	}
 	return
 }
@@ -54,8 +60,8 @@ func createPeerConnection() (pc *webrtc.RTCPeerConnection, err error) {
 func clearTerminal() {
 	// http://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
 	// fmt.Print("\033[s")  // save cursor state
-	fmt.Print("\033[2J") // clear terminal
-	fmt.Print("\033[H")  // move cursor to 0,0
+	// fmt.Print("\033[2J") // clear terminal
+	// fmt.Print("\033[H")  // move cursor to 0,0
 }
 
 func resumeTerminal() {

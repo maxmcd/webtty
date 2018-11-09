@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/golang/glog"
 	"github.com/kr/pty"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
@@ -18,7 +18,7 @@ import (
 func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error {
 	winSize, err := pty.GetsizeFull(term)
 	if err != nil {
-		glog.Fatal(err)
+		log.Fatal(err)
 	}
 	size := fmt.Sprintf(`["set_size",%d,%d,%d,%d]`,
 		winSize.Rows, winSize.Cols, winSize.X, winSize.Y)
@@ -31,7 +31,7 @@ func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func
 		fmt.Printf("Data channel '%s'-'%d'='%d' open.\n", dc.Label, dc.ID, *dc.MaxPacketLifeTime)
 		oldTerminalState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
-			glog.Error(err)
+			log.Println(err)
 			errChan <- err
 		}
 		defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldTerminalState) }() // Best effort.
@@ -49,12 +49,12 @@ func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func
 		for {
 			nr, err := os.Stdin.Read(buf)
 			if err != nil {
-				glog.Error(err)
+				log.Println(err)
 				errChan <- err
 			}
 			err = dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
 			if err != nil {
-				glog.Error(err)
+				log.Println(err)
 				errChan <- err
 			}
 		}
@@ -85,7 +85,7 @@ func clientDataChannelOnMessage(errChan chan error, oldTerminalState *terminal.S
 func runClient(offerString string) (err error) {
 	pc, err := createPeerConnection()
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 	// Set the remote SessionDescription
@@ -96,14 +96,14 @@ func runClient(offerString string) (err error) {
 		MaxPacketLifeTime: &maxPacketLifeTime,
 	})
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 
 	errChan := make(chan error, 1)
 	oldTerminalState, err := terminal.GetState(int(os.Stdin.Fd()))
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return err
 	}
 	dc.Lock()
@@ -113,7 +113,7 @@ func runClient(offerString string) (err error) {
 
 	sessDesc, err := decodeOffer(offerString)
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 	offer := webrtc.RTCSessionDescription{
@@ -122,13 +122,13 @@ func runClient(offerString string) (err error) {
 	}
 
 	if err = pc.SetRemoteDescription(offer); err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return err
 	}
 	// Sets the LocalDescription, and starts our UDP listeners
 	answer, err := pc.CreateAnswer(nil)
 	if err != nil {
-		glog.Error(err)
+		log.Println(err)
 		return
 	}
 	encodedAnswer := encodeOffer(sessionDescription{Sdp: answer.Sdp})
