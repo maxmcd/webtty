@@ -14,9 +14,9 @@ WebRTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for W
 
 ### Running
 
-```
-$ webrtty -h 
-Usage of ./webrtty:
+```shell
+> webrtty -h 
+Usage of webrtty:
   -cmd
         The command to run. Default is "bash -l"
         Because this flag consumes the remainder of the command line,
@@ -30,14 +30,14 @@ Usage of ./webrtty:
   -v    Verbose logging
 ```
 
-```
+```shell
 # On the host computer
-$ webrtty
+> webrtty
 Setting up a WebRTTY connection.
 
 Connection ready. Here is your connection data:
 
-25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTMR34koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aLXb2M11kcUn9rzb4DX4KSaKB5PhszAiiCB2iHKugPUwhzCMd7JjYU2ZLWGHBnjCf1cujfMx4E1ZdZADDh1FaQ2njy6Chnmxhy68hKZh8HX3SqQKShEffyvptyun69c3cMBXBwq4eHZdrX86KMaQLFSCZaoPh8sLaRydPqiyHw9tYmAZ6GAFUQoju72SSPmT8sV3T4of4ZqCWm91EJfazmqVst8D9sxqj5HS9kYuBcn78Pa1gFY85hTehmHabQXh8XXouHyHp84yfWJqEQTAn7J8sGkH7SR4p8c24ohg2yfWbHSWzBD7Bv5Zz7MXmcDSzXMFpSzgqEtNKKokhqFmCHd6UXGEW4dCpAB37ANzBqsM4tn1YAfNny
+25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTM4koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aL2M11kcUn9rzb4DX4...
 
 Paste it in the terminal after the webrtty command
 Or in a browser: https://maxmcd.github.io/webrtty/
