@@ -60,7 +60,7 @@ func TestSendTermSize(t *testing.T) {
 
 	dcSend := func(payload datachannel.Payload) error {
 		switch p := payload.(type) {
-		case *datachannel.PayloadString:
+		case datachannel.PayloadString:
 			onMessage, errChan := makeShPty(t)
 			size, err := pty.GetsizeFull(ptmx)
 			if err != nil {

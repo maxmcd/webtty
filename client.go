@@ -23,7 +23,7 @@ func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error
 	size := fmt.Sprintf(`["set_size",%d,%d,%d,%d]`,
 		winSize.Rows, winSize.Cols, winSize.X, winSize.Y)
 
-	return dcSend(&datachannel.PayloadString{Data: []byte(size)})
+	return dcSend(datachannel.PayloadString{Data: []byte(size)})
 }
 
 func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func() {
@@ -40,7 +40,11 @@ func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func
 		signal.Notify(ch, syscall.SIGWINCH)
 		go func() {
 			for range ch {
-				sendTermSize(os.Stdin, dc.Send)
+				err := sendTermSize(os.Stdin, dc.Send)
+				if err != nil {
+					log.Println(err)
+					errChan <- err
+				}
 			}
 		}()
 		ch <- syscall.SIGWINCH // Initial resize.

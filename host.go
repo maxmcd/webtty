@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"time"
 
 	"github.com/kr/pty"
 	"github.com/mitchellh/colorstring"
@@ -41,6 +42,8 @@ func hostDataChannelOnOpen(dc *webrtc.RTCDataChannel, errChan chan error) func()
 			errChan <- err
 			return
 		}
+		// wait for pmtx to be readyd
+		time.Sleep(time.Millisecond * 10)
 
 		if _, err = terminal.MakeRaw(int(os.Stdin.Fd())); err != nil {
 			log.Println(err)
@@ -119,6 +122,7 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 					if err != nil {
 						log.Println(err)
 						errChan <- err
+						return
 					}
 					ws.Rows = uint16(size[1])
 					ws.Cols = uint16(size[2])
@@ -128,7 +132,7 @@ func hostDataChannelOnMessage(errChan chan error) func(payload datachannel.Paylo
 						ws.Y = uint16(size[4])
 					}
 
-					if err = pty.Setsize(ptmx, ws); err != nil {
+					if err := pty.Setsize(ptmx, ws); err != nil {
 						log.Println(err)
 						errChan <- err
 					}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 
@@ -12,13 +13,13 @@ import (
 func main() {
 	oneWay := flag.Bool("o", false, "One-way connection with no response needed.")
 	verbose := flag.Bool("v", false, "Verbose logging")
+	flag.Parse()
 	if *verbose {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 	} else {
 		log.SetFlags(0)
 		log.SetOutput(ioutil.Discard)
 	}
-	flag.Parse()
 	args := flag.Args()
 	var offerString string
 	if len(args) > 0 {
@@ -28,12 +29,12 @@ func main() {
 	if len(offerString) == 0 {
 		err := runHost(*oneWay)
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 		}
 	} else {
 		err := runClient(offerString)
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 		}
 	}
 	resumeTerminal()
