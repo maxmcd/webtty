@@ -6,6 +6,7 @@
   "scripts": {
     "build": "parcel build src/index.html --public-url .",
     "serve": "parcel serve src/index.html",
+    "test": "echo notests",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "author": "",

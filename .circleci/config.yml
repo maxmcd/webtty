@@ -1,0 +1,30 @@
+version: 2
+jobs:
+  build:
+    machine: true
+    working_directory: /home/circleci/.go_workspace/src/github.com/maxmcd/webrtty
+    steps:
+      - restore_cache:
+          keys:
+            - v1-repo-{{ .Branch }}-{{ .Revision }}
+            - v1-repo-{{ .Branch }}
+            - v1-repo
+      - checkout
+      - run:
+          name: run go tests
+          command: |
+            set -e
+            go get -v ./... 
+            go test
+      - run:
+          name: run npm tests
+          command: |
+            set -e
+            cd ./web-client
+            npm install
+            npm run build
+            npm run test
+      - save_cache:
+          key: v1-repo-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - /home/circleci/

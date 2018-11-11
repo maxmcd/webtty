@@ -33,7 +33,7 @@ func hostDataChannelOnOpen(dc *webrtc.RTCDataChannel, errChan chan error) func()
 		colorstring.Println("[bold]Terminal session started:")
 		clearTerminal()
 
-		cmd := exec.Command("bash", "-i")
+		cmd := exec.Command("bash", "-l")
 		var err error
 		ptmx, err = pty.Start(cmd)
 		if err != nil {
