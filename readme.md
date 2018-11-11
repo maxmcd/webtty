@@ -47,7 +47,7 @@ When you have the answer, paste it below and hit enter:
 
 ### Terminal Size
 
-By default WebRTTY forces the size of the client termial. This means the host size can frequently render incorrectly. One way you can fix this is by using tmux:
+By default WebRTTY forces the size of the client terminal. This means the host size can frequently render incorrectly. One way you can fix this is by using tmux:
 
 ```bash 
 tmux new-session -s shared
@@ -62,7 +62,7 @@ One-way connections can be enabled with the `-o` flag. A typical webrtc connecti
 
 I think this somewhat violates the spirit of this tool because it relies on a third party service. However, one-way connections allow you to do very cool things. Eg: I can have a build server output a WebRTTY connection string on error and allow anyone to attach to the session.
 
-Sdp descriptions are encrypted when uploaded and encryption keys are shared with the connection data to decrypt. So presumably the service being comporomised is not problematic.
+SDP descriptions are encrypted when uploaded and encryption keys are shared with the connection data to decrypt. So presumably the service being compromised is not problematic.
 
 Very open to any ideas on how to enable trusted one-way connections. Please open an issue or reach out if you have thoughts. For now, the `-o` flag will print a warning and link to this explanation. 
 

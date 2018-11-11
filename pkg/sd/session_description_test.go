@@ -29,7 +29,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err := sd.Decrypt()
+	err = sd.Decrypt()
 	if err != nil {
 		t.Error(err)
 	}

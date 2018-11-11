@@ -5,8 +5,7 @@
   "main": "app.js",
   "scripts": {
     "build": "npm run go-build && parcel build src/index.html --public-url .",
-    "go-build":
-      "rm ./dist/* && GOOS=js GOARCH=wasm go build -o ./dist/main.wasm ./src",
+    "go-build": "mkdir -p ./dist/ && touch ./dist/foo && rm ./dist/* && GOOS=js GOARCH=wasm go build -o ./dist/main.wasm ./src",
     "serve": "parcel serve src/index.html",
     "test": "echo notests",
     "deploy": "npm run build && gh-pages -d dist"
@@ -14,12 +13,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@babel/core": "^7.1.5",
+    "@babel/runtime-corejs2": "^7.1.5",
     "gh-pages": "^2.0.1",
     "parcel-bundler": "^1.10.3",
     "typescript": "^3.1.6",
     "xterm": "^3.8.0"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.1.5"
   }
 }
