@@ -17,9 +17,11 @@ import (
 
 type clientConfig struct {
 	dc               *webrtc.RTCDataChannel
-	pc               *webrtc.RTCPeerConnection
-	oldTerminalState *terminal.State
 	errChan          chan error
+	isTerminal       bool
+	oldTerminalState *terminal.State
+	pc               *webrtc.RTCPeerConnection
+	sessDesc         sessionDescription
 }
 
 func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error {
@@ -78,7 +80,9 @@ func (cc *clientConfig) dataChannelOnMessage() func(payload datachannel.Payload)
 		switch p := payload.(type) {
 		case *datachannel.PayloadString:
 			if string(p.Data) == "quit" {
-				terminal.Restore(int(os.Stdin.Fd()), cc.oldTerminalState)
+				if cc.isTerminal {
+					terminal.Restore(int(os.Stdin.Fd()), cc.oldTerminalState)
+				}
 				cc.errChan <- nil
 				return
 			}
@@ -95,6 +99,7 @@ func (cc *clientConfig) dataChannelOnMessage() func(payload datachannel.Payload)
 }
 
 func (cc *clientConfig) runClient(offerString string) (err error) {
+	cc.isTerminal = terminal.IsTerminal(int(os.Stdin.Fd()))
 	if cc.pc, err = createPeerConnection(); err != nil {
 		log.Println(err)
 		return
@@ -111,23 +116,26 @@ func (cc *clientConfig) runClient(offerString string) (err error) {
 	}
 
 	cc.errChan = make(chan error, 1)
-	if cc.oldTerminalState, err = terminal.GetState(int(os.Stdin.Fd())); err != nil {
-		log.Println(err)
-		return err
+
+	if cc.isTerminal {
+		if cc.oldTerminalState, err = terminal.GetState(int(os.Stdin.Fd())); err != nil {
+			log.Println(err)
+			return err
+		}
 	}
+
 	cc.dc.Lock()
 	cc.dc.OnOpen = cc.dataChannelOnOpen()
 	cc.dc.Onmessage = cc.dataChannelOnMessage()
 	cc.dc.Unlock()
 
-	sessDesc, err := decodeOffer(offerString)
-	if err != nil {
+	if cc.sessDesc, err = decodeOffer(offerString); err != nil {
 		log.Println(err)
 		return
 	}
 	offer := webrtc.RTCSessionDescription{
 		Type: webrtc.RTCSdpTypeOffer,
-		Sdp:  sessDesc.Sdp,
+		Sdp:  cc.sessDesc.Sdp,
 	}
 
 	if err = cc.pc.SetRemoteDescription(offer); err != nil {
@@ -141,12 +149,12 @@ func (cc *clientConfig) runClient(offerString string) (err error) {
 		return
 	}
 	encodedAnswer := encodeOffer(sessionDescription{Sdp: answer.Sdp})
-	if sessDesc.TenKbSiteLoc == "" {
+	if cc.sessDesc.TenKbSiteLoc == "" {
 		// Get the LocalDescription and take it to base64 so we can paste in browser
 		fmt.Printf("Answer created. Send the following answer to the host:\n\n")
 		fmt.Println(encodedAnswer)
 	} else {
-		if err := create10kbFile(sessDesc.TenKbSiteLoc, encodedAnswer); err != nil {
+		if err := create10kbFile(cc.sessDesc.TenKbSiteLoc, encodedAnswer); err != nil {
 			return err
 		}
 	}

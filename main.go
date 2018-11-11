@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/ice"
@@ -13,6 +14,20 @@ import (
 func main() {
 	oneWay := flag.Bool("o", false, "One-way connection with no response needed.")
 	verbose := flag.Bool("v", false, "Verbose logging")
+	nonInteractive := flag.Bool("non-interactive", false, "Set host to non-interactive")
+	ni := flag.Bool("ni", false, "Set host to non-interactive")
+	_ = flag.Bool("cmd", false, "The command to run. Default is \"bash -l\"\n"+
+	    "Because this flag consumes the remainder of the command line,\n"+
+	    "all other args (if present) must appear before this flag.\n"+
+	    "eg: webrtty -o -v -ni -cmd docker run -it --rm alpine:latest sh")
+
+	cmd := []string{"bash", "-l"}
+	for i, arg := range os.Args {
+		if arg == "-cmd" {
+			cmd = os.Args[i+1:]
+			os.Args = os.Args[:i]
+		}
+	}
 	flag.Parse()
 	if *verbose {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -26,20 +41,20 @@ func main() {
 		offerString = args[len(args)-1]
 	}
 
+	var err error
 	if len(offerString) == 0 {
 		hc := hostConfig{
-			oneWay: *oneWay,
+			oneWay:         *oneWay,
+			cmd:       cmd,
+			nonInteractive: *nonInteractive || *ni,
 		}
-		err := hc.run()
-		if err != nil {
-			fmt.Println(err)
-		}
+		err = hc.run()
 	} else {
 		cc := clientConfig{}
-		err := cc.runClient(offerString)
-		if err != nil {
-			fmt.Println(err)
-		}
+		err = cc.runClient(offerString)
+	}
+	if err != nil {
+		fmt.Printf("Quitting with an unexpected error: \"%s\"\n", err)
 	}
 	resumeTerminal()
 }

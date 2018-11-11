@@ -15,6 +15,22 @@ WebRTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for W
 ### Running
 
 ```
+$ webrtty -h 
+Usage of ./webrtty:
+  -cmd
+        The command to run. Default is "bash -l"
+        Because this flag consumes the remainder of the command line,
+        all other args (if present) must appear before this flag.
+        eg: webrtty -o -v -ni -cmd docker run -it --rm alpine:latest sh
+  -ni
+        Set host to non-interactive
+  -non-interactive
+        Set host to non-interactive
+  -o    One-way connection with no response needed.
+  -v    Verbose logging
+```
+
+```
 # On the host computer
 $ webrtty
 Setting up a WebRTTY connection.

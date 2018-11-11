@@ -20,15 +20,19 @@ import (
 
 type hostConfig struct {
 	// mutex?
-	bashArgs  []string
-	tmux      bool
-	oneWay    bool
-	dc        *webrtc.RTCDataChannel
-	pc        *webrtc.RTCPeerConnection
-	sessDesc  sessionDescription
-	errChan   chan error
-	ptmx      *os.File
-	ptmxReady bool
+	answer           sessionDescription
+	cmd         []string
+	dc               *webrtc.RTCDataChannel
+	errChan          chan error
+	isTerminal       bool
+	nonInteractive   bool
+	offer            sessionDescription
+	oldTerminalState *terminal.State
+	oneWay           bool
+	pc               *webrtc.RTCPeerConnection
+	ptmx             *os.File
+	ptmxReady        bool
+	tmux             bool
 }
 
 func (hc *hostConfig) dataChannelOnOpen() func() {
@@ -36,7 +40,7 @@ func (hc *hostConfig) dataChannelOnOpen() func() {
 		colorstring.Println("[bold]Terminal session started:")
 		clearTerminal()
 
-		cmd := exec.Command("bash", "-l")
+		cmd := exec.Command(hc.cmd[0], hc.cmd[1:]...)
 		var err error
 		hc.ptmx, err = pty.Start(cmd)
 		if err != nil {
@@ -46,16 +50,18 @@ func (hc *hostConfig) dataChannelOnOpen() func() {
 		}
 		hc.ptmxReady = true
 
-		if _, err = terminal.MakeRaw(int(os.Stdin.Fd())); err != nil {
-			log.Println(err)
-			hc.errChan <- err
-			return
-		}
-		go func() {
-			if _, err = io.Copy(hc.ptmx, os.Stdin); err != nil {
+		if !hc.nonInteractive {
+			if _, err = terminal.MakeRaw(int(os.Stdin.Fd())); err != nil {
 				log.Println(err)
+				hc.errChan <- err
+				return
 			}
-		}()
+			go func() {
+				if _, err = io.Copy(hc.ptmx, os.Stdin); err != nil {
+					log.Println(err)
+				}
+			}()
+		}
 
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
@@ -78,10 +84,12 @@ func (hc *hostConfig) dataChannelOnOpen() func() {
 				hc.errChan <- err
 				return
 			}
-			if _, err = os.Stdout.Write(buf[0:nr]); err != nil {
-				log.Println(err)
-				hc.errChan <- err
-				return
+			if !hc.nonInteractive {
+				if _, err = os.Stdout.Write(buf[0:nr]); err != nil {
+					log.Println(err)
+					hc.errChan <- err
+					return
+				}
 			}
 			if err = hc.dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]}); err != nil {
 				log.Println(err)
@@ -178,7 +186,7 @@ func mustReadStdin() (string, error) {
 	return sd.Sdp, err
 }
 
-func (hc *hostConfig) createSessDesc() (err error) {
+func (hc *hostConfig) createOffer() (err error) {
 	hc.pc, err = createPeerConnection()
 	if err != nil {
 		log.Println(err)
@@ -193,16 +201,17 @@ func (hc *hostConfig) createSessDesc() (err error) {
 		log.Println(err)
 		return
 	}
-	hc.sessDesc = sessionDescription{
+	hc.offer = sessionDescription{
 		Sdp: offer.Sdp,
 	}
 	if hc.oneWay == true {
-		hc.sessDesc.TenKbSiteLoc = randSeq(100)
+		hc.offer.TenKbSiteLoc = randSeq(100)
 	}
 	return
 }
 
 func (hc *hostConfig) run() (err error) {
+	hc.isTerminal = terminal.IsTerminal(int(os.Stdin.Fd()))
 	colorstring.Printf("[bold]Setting up a WebRTTY connection.\n\n")
 	if hc.oneWay {
 		colorstring.Printf(
@@ -210,32 +219,32 @@ func (hc *hostConfig) run() (err error) {
 				"More info here: https://github.com/maxmcd/webrtty#one-way-connections\n\n")
 	}
 
-	if err = hc.createSessDesc(); err != nil {
+	if err = hc.createOffer(); err != nil {
 		return
 	}
 
 	// Output the offer in base64 so we can paste it in browser
 	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
-	fmt.Printf("%s\n\n", encodeOffer(hc.sessDesc))
+	fmt.Printf("%s\n\n", encodeOffer(hc.offer))
 	colorstring.Printf(`[bold]Paste it in the terminal after the webrtty command` +
 		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webrtty/\n\n")
 
 	if hc.oneWay == false {
 		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")
 		// Wait for the answer to be pasted
-		hc.sessDesc.Sdp, err = mustReadStdin()
+		hc.answer.Sdp, err = mustReadStdin()
 		if err != nil {
 			log.Println(err)
 			return
 		}
 		fmt.Println("Answer recieved, connecting...")
 	} else {
-		body, err := pollForResponse(hc.sessDesc.TenKbSiteLoc)
+		body, err := pollForResponse(hc.offer.TenKbSiteLoc)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
-		hc.sessDesc, err = decodeOffer(body)
+		hc.answer, err = decodeOffer(body)
 		if err != nil {
 			log.Println(err)
 			return err
@@ -248,7 +257,7 @@ func (hc *hostConfig) setHostRemoteDescriptionAndWait() (err error) {
 	// Set the remote SessionDescription
 	answer := webrtc.RTCSessionDescription{
 		Type: webrtc.RTCSdpTypeAnswer,
-		Sdp:  hc.sessDesc.Sdp,
+		Sdp:  hc.answer.Sdp,
 	}
 
 	// Apply the answer as the remote description
@@ -257,10 +266,12 @@ func (hc *hostConfig) setHostRemoteDescriptionAndWait() (err error) {
 		return
 	}
 
-	oldTerminalState, err := terminal.GetState(int(os.Stdin.Fd()))
-	if err != nil {
-		log.Println(err)
-		return
+	if hc.isTerminal {
+		hc.oldTerminalState, err = terminal.GetState(int(os.Stdin.Fd()))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 	}
 	// Wait to quit
 	err = <-hc.errChan
@@ -268,8 +279,10 @@ func (hc *hostConfig) setHostRemoteDescriptionAndWait() (err error) {
 		// TODO: check dc state?
 		hc.dc.Send(datachannel.PayloadString{Data: []byte("quit")})
 	}
-	if err := terminal.Restore(int(os.Stdin.Fd()), oldTerminalState); err != nil {
-		log.Println(err)
+	if hc.isTerminal {
+		if err := terminal.Restore(int(os.Stdin.Fd()), hc.oldTerminalState); err != nil {
+			log.Println(err)
+		}
 	}
 	return
 }
