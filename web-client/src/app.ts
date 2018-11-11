@@ -2,24 +2,25 @@ import Terminal from "xterm/src/xterm.ts";
 import * as attach from "./attach.ts";
 import * as fullscreen from "xterm/src/addons/fullscreen/fullscreen.ts";
 import * as fit from "xterm/src/addons/fit/fit.ts";
-import pako from "pako";
-import aesjs from "aes-js";
 
 import "xterm/dist/xterm.css";
 import "xterm/dist/addons/fullscreen/fullscreen.css";
-import bs58 from "bs58";
-import { Buffer } from "safe-buffer";
-window.pako = pako;
+
+// imports "Go"
+import "./wasm_exec.js";
 
 Terminal.applyAddon(attach);
 Terminal.applyAddon(fullscreen);
 Terminal.applyAddon(fit);
 
-const encodeOffer = (data: string) =>
-  bs58.encode(Buffer.from(pako.deflate(JSON.stringify({ Sdp: data }))));
-
-const decodeOffer = (data: string): string =>
-  JSON.parse(pako.inflate(bs58.decode(data), { to: "string" }));
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(
+  result => {
+    let mod = result.module;
+    let inst = result.instance;
+    go.run(inst);
+  }
+);
 
 const create10kbFile = (path: string, body: string): void =>
   fetch("https://up.10kb.site/" + path, {
@@ -30,22 +31,26 @@ const create10kbFile = (path: string, body: string): void =>
     .then(resp => {});
 
 const startSession = (data: string) => {
-  const sessionDesc = decodeOffer(data);
-  if (sessionDesc.TenKbSiteLoc != "") {
-    TenKbSiteLoc = sessionDesc.TenKbSiteLoc;
-  }
-  pc
-    .setRemoteDescription(
-      new RTCSessionDescription({
-        type: "offer",
-        sdp: sessionDesc.Sdp
-      })
-    )
-    .catch(log);
-  pc
-    .createAnswer()
-    .then(d => pc.setLocalDescription(d))
-    .catch(log);
+  decode(data, (Sdp, tenKbSiteLoc, err) => {
+    if (err != "") {
+      console.log(err);
+    }
+    if (tenKbSiteLoc != "") {
+      TenKbSiteLoc = tenKbSiteLoc;
+    }
+    pc
+      .setRemoteDescription(
+        new RTCSessionDescription({
+          type: "offer",
+          sdp: Sdp
+        })
+      )
+      .catch(log);
+    pc
+      .createAnswer()
+      .then(d => pc.setLocalDescription(d))
+      .catch(log);
+  });
 };
 
 let TenKbSiteLoc = null;
@@ -89,10 +94,20 @@ pc.onicecandidate = event => {
       term.write(
         "Answer created. Send the following answer to the host:\n\r\n\r"
       );
-      term.write(encodeOffer(pc.localDescription.sdp));
+      encode(pc.localDescription.sdp, (encoded, err) => {
+        if (err != "") {
+          console.log(err);
+        }
+        term.write(encoded);
+      });
     } else {
       term.write("Waiting for connection...");
-      create10kbFile(TenKbSiteLoc, encodeOffer(pc.localDescription.sdp));
+      encode(pc.localDescription.sdp, (encoded, err) => {
+        if (err != "") {
+          console.log(err);
+        }
+        create10kbFile(TenKbSiteLoc, encoded);
+      });
     }
   }
 };

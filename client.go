@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/kr/pty"
+	"github.com/maxmcd/webrtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
@@ -21,7 +22,7 @@ type clientConfig struct {
 	isTerminal       bool
 	oldTerminalState *terminal.State
 	pc               *webrtc.RTCPeerConnection
-	sessDesc         sessionDescription
+	offer            sd.SessionDescription
 }
 
 func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error {
@@ -129,13 +130,19 @@ func (cc *clientConfig) runClient(offerString string) (err error) {
 	cc.dc.Onmessage = cc.dataChannelOnMessage()
 	cc.dc.Unlock()
 
-	if cc.sessDesc, err = decodeOffer(offerString); err != nil {
+	if cc.offer, err = sd.Decode(offerString); err != nil {
 		log.Println(err)
 		return
 	}
+	if cc.offer.Key != "" {
+		if err = cc.offer.Decrypt(); err != nil {
+			log.Println(err)
+			return
+		}
+	}
 	offer := webrtc.RTCSessionDescription{
 		Type: webrtc.RTCSdpTypeOffer,
-		Sdp:  cc.sessDesc.Sdp,
+		Sdp:  cc.offer.Sdp,
 	}
 
 	if err = cc.pc.SetRemoteDescription(offer); err != nil {
@@ -148,13 +155,27 @@ func (cc *clientConfig) runClient(offerString string) (err error) {
 		log.Println(err)
 		return
 	}
-	encodedAnswer := encodeOffer(sessionDescription{Sdp: answer.Sdp})
-	if cc.sessDesc.TenKbSiteLoc == "" {
+	answerSd := sd.SessionDescription{
+		Sdp:   answer.Sdp,
+		Key:   cc.offer.Key,
+		Nonce: cc.offer.Nonce,
+	}
+	if cc.offer.Key != "" {
+		// Encrypt with the shared keys from the offer
+		_ = answerSd.Encrypt()
+
+		// Don't upload the keys, the host has them
+		answerSd.Key = ""
+		answerSd.Nonce = ""
+	}
+
+	encodedAnswer := sd.Encode(answerSd)
+	if cc.offer.TenKbSiteLoc == "" {
 		// Get the LocalDescription and take it to base64 so we can paste in browser
 		fmt.Printf("Answer created. Send the following answer to the host:\n\n")
 		fmt.Println(encodedAnswer)
 	} else {
-		if err := create10kbFile(cc.sessDesc.TenKbSiteLoc, encodedAnswer); err != nil {
+		if err := create10kbFile(cc.offer.TenKbSiteLoc, encodedAnswer); err != nil {
 			return err
 		}
 	}

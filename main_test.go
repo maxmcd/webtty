@@ -35,12 +35,12 @@ func init() {
 // 		}
 // 	}()
 
-// 	for cc.sessDesc.Sdp == "" {
+// 	for cc.offer.Sdp == "" {
 // 		// wait for sdp to be set
 // 		time.Sleep(1 * time.Millisecond)
 // 	}
 // 	stdoutMock.Write([]byte(encodeOffer))
-// 	hc.answer = cc.sessDesc
+// 	hc.answer = cc.offer
 // 	go hc.setHostRemoteDescriptionAndWait()
 
 // }
