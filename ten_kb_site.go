@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -10,32 +9,32 @@ import (
 	"time"
 )
 
-var tenKbUpUrl string = "https://up.10kb.site/"
-var tenKbUrl string = "https://www.10kb.site/"
+var tenKbUpURL = "https://up.10kb.site/"
+var tenKbURL = "https://www.10kb.site/"
 
 func create10kbFile(path, body string) error {
 	resp, err := http.Post(
-		tenKbUpUrl+path, "text/plain", bytes.NewBuffer([]byte(body)))
+		tenKbUpURL+path, "text/plain", bytes.NewBuffer([]byte(body)))
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return errors.New(fmt.Sprintf(
-			"Resp %d 10kb.site error: %s", resp.StatusCode, string(body)))
+		return fmt.Errorf(
+			"Resp %d 10kb.site error: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
 
 func read10kbFile(path string) (int, string, error) {
-	resp, err := http.Get(fmt.Sprintf("%s%s", tenKbUrl, path))
+	resp, err := http.Get(fmt.Sprintf("%s%s", tenKbURL, path))
 	if err != nil {
 		return 0, "", err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, "", errors.New(fmt.Sprintf(
-			"Resp %d 10kb.site error: %s", resp.StatusCode, string(body)))
+		return resp.StatusCode, "", fmt.Errorf(
+			"Resp %d 10kb.site error: %s", resp.StatusCode, string(body))
 	}
 	if err != nil {
 		return resp.StatusCode, "", err

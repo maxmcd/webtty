@@ -33,7 +33,7 @@ func TestCreate10kbFile(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusCreated)
 	}))
-	tenKbUpUrl = ts.URL + "/"
+	tenKbUpURL = ts.URL + "/"
 
 	err := create10kbFile(path, body)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestRead10kbFile(t *testing.T) {
 		}
 		w.Write([]byte("body"))
 	}))
-	tenKbUrl = ts.URL + "/"
+	tenKbURL = ts.URL + "/"
 
 	status, body, err := read10kbFile(path)
 	if err != nil {
@@ -103,14 +103,14 @@ func TestRead10kbFile(t *testing.T) {
 func TestPollForResponse(t *testing.T) {
 	var count int
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		count += 1
+		count++
 		if count < 3 {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		w.Write([]byte("body"))
 	}))
-	tenKbUrl = ts.URL + "/"
+	tenKbURL = ts.URL + "/"
 
 	body, err := pollForResponse("path")
 	if body != "body" {

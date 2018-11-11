@@ -15,6 +15,8 @@ jobs:
           command: |
             set -e
             go get -v ./... 
+            go get golang.org/x/lint/golint
+            golint
             go test
       - run:
           name: run npm tests

@@ -12,13 +12,14 @@ import (
 )
 
 func TestHosttDataChannelOnMessage(t *testing.T) {
-	errChan := make(chan error, 1)
-	onMessage := hostDataChannelOnMessage(errChan)
+	hc := hostConfig{ptmxReady: true}
+	hc.errChan = make(chan error, 1)
+	onMessage := hc.dataChannelOnMessage()
 	quitPayload := datachannel.PayloadString{Data: []byte("quit")}
 	onMessage(&quitPayload)
 
 	select {
-	case err := <-errChan:
+	case err := <-hc.errChan:
 		if err != nil {
 			t.Error(err)
 		}
@@ -27,7 +28,7 @@ func TestHosttDataChannelOnMessage(t *testing.T) {
 	}
 
 	stdoutMock := tmpFile()
-	ptmx = stdoutMock
+	hc.ptmx = stdoutMock
 
 	binaryPayload := datachannel.PayloadBinary{Data: []byte("s")}
 	onMessage(&binaryPayload)
@@ -39,26 +40,27 @@ func TestHosttDataChannelOnMessage(t *testing.T) {
 
 }
 
-func makeShPty(t *testing.T) (func(p datachannel.Payload), chan error) {
-	errChan := make(chan error, 1)
-	onMessage := hostDataChannelOnMessage(errChan)
+func makeShPty(t *testing.T) (func(p datachannel.Payload), hostConfig) {
+	hc := hostConfig{ptmxReady: true}
+	hc.errChan = make(chan error, 1)
+	onMessage := hc.dataChannelOnMessage()
 	c := exec.Command("sh")
 	var err error
 	// redefine the global ptmx
-	ptmx, err = pty.Start(c)
+	hc.ptmx, err = pty.Start(c)
 	if err != nil {
 		t.Error(err)
 	}
-	return onMessage, errChan
+	return onMessage, hc
 }
 
 func TestClientSetSizeOnMessage(t *testing.T) {
-	onMessage, errChan := makeShPty(t)
+	onMessage, hc := makeShPty(t)
 
 	sizeOnlyPayload := datachannel.PayloadString{Data: []byte(`["set_size", 20, 30]`)}
 	onMessage(&sizeOnlyPayload)
 
-	size, err := pty.GetsizeFull(ptmx)
+	size, err := pty.GetsizeFull(hc.ptmx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -69,7 +71,7 @@ func TestClientSetSizeOnMessage(t *testing.T) {
 	sizeAndCursorPayload := datachannel.PayloadString{Data: []byte(`["set_size", 20, 30, 10, 11]`)}
 	onMessage(&sizeAndCursorPayload)
 
-	size, err = pty.GetsizeFull(ptmx)
+	size, err = pty.GetsizeFull(hc.ptmx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -77,7 +79,7 @@ func TestClientSetSizeOnMessage(t *testing.T) {
 		t.Error("wrong size", size)
 	}
 	select {
-	case err := <-errChan:
+	case err := <-hc.errChan:
 		if err != nil {
 			t.Error(err)
 		}

@@ -27,12 +27,16 @@ func main() {
 	}
 
 	if len(offerString) == 0 {
-		err := runHost(*oneWay)
+		hc := hostConfig{
+			oneWay: *oneWay,
+		}
+		err := hc.run()
 		if err != nil {
 			fmt.Println(err)
 		}
 	} else {
-		err := runClient(offerString)
+		cc := clientConfig{}
+		err := cc.runClient(offerString)
 		if err != nil {
 			fmt.Println(err)
 		}

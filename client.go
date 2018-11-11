@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -10,10 +9,18 @@ import (
 	"syscall"
 
 	"github.com/kr/pty"
+	"github.com/mitchellh/colorstring"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+type clientConfig struct {
+	dc               *webrtc.RTCDataChannel
+	pc               *webrtc.RTCPeerConnection
+	oldTerminalState *terminal.State
+	errChan          chan error
+}
 
 func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error {
 	winSize, err := pty.GetsizeFull(term)
@@ -26,13 +33,14 @@ func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error
 	return dcSend(datachannel.PayloadString{Data: []byte(size)})
 }
 
-func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func() {
+func (cc *clientConfig) dataChannelOnOpen() func() {
 	return func() {
-		fmt.Printf("Data channel '%s'-'%d'='%d' open.\n", dc.Label, dc.ID, *dc.MaxPacketLifeTime)
+		log.Printf("Data channel '%s'-'%d'='%d' open.\n", cc.dc.Label, cc.dc.ID, *cc.dc.MaxPacketLifeTime)
+		colorstring.Println("[bold]Terminal session started:")
 		oldTerminalState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			log.Println(err)
-			errChan <- err
+			cc.errChan <- err
 		}
 		defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldTerminalState) }() // Best effort.
 
@@ -40,10 +48,10 @@ func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func
 		signal.Notify(ch, syscall.SIGWINCH)
 		go func() {
 			for range ch {
-				err := sendTermSize(os.Stdin, dc.Send)
+				err := sendTermSize(os.Stdin, cc.dc.Send)
 				if err != nil {
 					log.Println(err)
-					errChan <- err
+					cc.errChan <- err
 				}
 			}
 		}()
@@ -54,27 +62,27 @@ func clientDataChannelOnOpen(errChan chan error, dc *webrtc.RTCDataChannel) func
 			nr, err := os.Stdin.Read(buf)
 			if err != nil {
 				log.Println(err)
-				errChan <- err
+				cc.errChan <- err
 			}
-			err = dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
+			err = cc.dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
 			if err != nil {
 				log.Println(err)
-				errChan <- err
+				cc.errChan <- err
 			}
 		}
 	}
 }
 
-func clientDataChannelOnMessage(errChan chan error, oldTerminalState *terminal.State) func(payload datachannel.Payload) {
+func (cc *clientConfig) dataChannelOnMessage() func(payload datachannel.Payload) {
 	return func(payload datachannel.Payload) {
 		switch p := payload.(type) {
 		case *datachannel.PayloadString:
 			if string(p.Data) == "quit" {
-				terminal.Restore(int(os.Stdin.Fd()), oldTerminalState)
-				errChan <- nil
+				terminal.Restore(int(os.Stdin.Fd()), cc.oldTerminalState)
+				cc.errChan <- nil
 				return
 			}
-			errChan <- errors.New(fmt.Sprintf(`Unmatched string message: "%s"`, string(p.Data)))
+			cc.errChan <- fmt.Errorf(`Unmatched string message: "%s"`, string(p.Data))
 		case *datachannel.PayloadBinary:
 			f := bufio.NewWriter(os.Stdout)
 			f.Write(p.Data)
@@ -86,34 +94,31 @@ func clientDataChannelOnMessage(errChan chan error, oldTerminalState *terminal.S
 	}
 }
 
-func runClient(offerString string) (err error) {
-	pc, err := createPeerConnection()
-	if err != nil {
+func (cc *clientConfig) runClient(offerString string) (err error) {
+	if cc.pc, err = createPeerConnection(); err != nil {
 		log.Println(err)
 		return
 	}
 	// Set the remote SessionDescription
 	maxPacketLifeTime := uint16(1000)
-	var ordered bool = true
-	dc, err := pc.CreateDataChannel("data", &webrtc.RTCDataChannelInit{
+	ordered := true
+	if cc.dc, err = cc.pc.CreateDataChannel("data", &webrtc.RTCDataChannelInit{
 		Ordered:           &ordered,
 		MaxPacketLifeTime: &maxPacketLifeTime,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Println(err)
 		return
 	}
 
-	errChan := make(chan error, 1)
-	oldTerminalState, err := terminal.GetState(int(os.Stdin.Fd()))
-	if err != nil {
+	cc.errChan = make(chan error, 1)
+	if cc.oldTerminalState, err = terminal.GetState(int(os.Stdin.Fd())); err != nil {
 		log.Println(err)
 		return err
 	}
-	dc.Lock()
-	dc.OnOpen = clientDataChannelOnOpen(errChan, dc)
-	dc.Onmessage = clientDataChannelOnMessage(errChan, oldTerminalState)
-	dc.Unlock()
+	cc.dc.Lock()
+	cc.dc.OnOpen = cc.dataChannelOnOpen()
+	cc.dc.Onmessage = cc.dataChannelOnMessage()
+	cc.dc.Unlock()
 
 	sessDesc, err := decodeOffer(offerString)
 	if err != nil {
@@ -125,12 +130,12 @@ func runClient(offerString string) (err error) {
 		Sdp:  sessDesc.Sdp,
 	}
 
-	if err = pc.SetRemoteDescription(offer); err != nil {
+	if err = cc.pc.SetRemoteDescription(offer); err != nil {
 		log.Println(err)
 		return err
 	}
 	// Sets the LocalDescription, and starts our UDP listeners
-	answer, err := pc.CreateAnswer(nil)
+	answer, err := cc.pc.CreateAnswer(nil)
 	if err != nil {
 		log.Println(err)
 		return
@@ -145,5 +150,5 @@ func runClient(offerString string) (err error) {
 			return err
 		}
 	}
-	return <-errChan
+	return <-cc.errChan
 }

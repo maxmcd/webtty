@@ -14,14 +14,15 @@ import (
 )
 
 func TestClientDataChannelOnMessage(t *testing.T) {
-	errChan := make(chan error, 1)
-	oldTerminalState := terminal.State{}
-	onMessage := clientDataChannelOnMessage(errChan, &oldTerminalState)
+	cc := clientConfig{}
+	cc.errChan = make(chan error, 1)
+	cc.oldTerminalState = &terminal.State{}
+	onMessage := cc.dataChannelOnMessage()
 	quitPayload := datachannel.PayloadString{Data: []byte("quit")}
 	onMessage(&quitPayload)
 
 	select {
-	case err := <-errChan:
+	case err := <-cc.errChan:
 		if err != nil {
 			t.Error(err)
 		}
@@ -44,12 +45,14 @@ func TestClientDataChannelOnMessage(t *testing.T) {
 }
 
 func TestSendTermSize(t *testing.T) {
+	hc := hostConfig{ptmxReady: true}
 	c := exec.Command("sh")
-	hostPtmx, err := pty.Start(c)
+	var err error
+	hc.ptmx, err = pty.Start(c)
 	if err != nil {
 		t.Error(err)
 	}
-	if err := pty.Setsize(hostPtmx, &pty.Winsize{
+	if err := pty.Setsize(hc.ptmx, &pty.Winsize{
 		Rows: 19,
 		Cols: 29,
 		X:    9,
@@ -61,8 +64,8 @@ func TestSendTermSize(t *testing.T) {
 	dcSend := func(payload datachannel.Payload) error {
 		switch p := payload.(type) {
 		case datachannel.PayloadString:
-			onMessage, errChan := makeShPty(t)
-			size, err := pty.GetsizeFull(ptmx)
+			onMessage, hc := makeShPty(t)
+			size, err := pty.GetsizeFull(hc.ptmx)
 			if err != nil {
 				t.Error(err)
 			}
@@ -71,14 +74,14 @@ func TestSendTermSize(t *testing.T) {
 			}
 			onMessage(&datachannel.PayloadString{Data: p.Data})
 			select {
-			case err := <-errChan:
+			case err := <-hc.errChan:
 				if err != nil {
 					t.Error(err)
 				}
 			default:
 
 			}
-			size, err = pty.GetsizeFull(ptmx)
+			size, err = pty.GetsizeFull(hc.ptmx)
 			if err != nil {
 				t.Error(err)
 			}
@@ -91,7 +94,7 @@ func TestSendTermSize(t *testing.T) {
 		}
 		return nil
 	}
-	if err := sendTermSize(hostPtmx, dcSend); err != nil {
+	if err := sendTermSize(hc.ptmx, dcSend); err != nil {
 		t.Error(err)
 	}
 
