@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  test:
+  build:
     docker:
       - image: maxmcd/webrtty-node-go:latest
     working_directory: /go/src/github.com/maxmcd/webrtty
