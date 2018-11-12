@@ -1,3 +1,5 @@
+![](https://maxmcd.github.io/webrtty/out.gif)
+
 # WebRTTY
 
 WebRTTY allows you to share a terminal session from your machine using WebRTC. You can pair with a friend without setting up a proxy server, debug servers behind NATs, and more. WebRTTY also works in-browser. You can connect to a WebRTTY session from this static page:  https://maxmcd.github.io/webrtty/
@@ -43,6 +45,10 @@ Paste it in the terminal after the webrtty command
 Or in a browser: https://maxmcd.github.io/webrtty/
 
 When you have the answer, paste it below and hit enter:
+# On the client computer
+webrtty 25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTM4koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aL2M11kcUn9rzb4DX4...
+
+
 ```
 
 ### Terminal Size
