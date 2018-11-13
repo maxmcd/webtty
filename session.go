@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/maxmcd/webrtty/pkg/sd"
+	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
 	"github.com/pions/webrtc/pkg/ice"

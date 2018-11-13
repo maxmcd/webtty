@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/kr/pty"
-	"github.com/maxmcd/webrtty/pkg/sd"
+	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
@@ -92,7 +92,6 @@ func (hs *hostSession) dataChannelOnOpen() func() {
 	}
 }
 
-
 func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) {
 	return func(payload datachannel.Payload) {
 
@@ -152,7 +151,7 @@ func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) 
 				return
 			}
 			hs.errChan <- fmt.Errorf(
-				`Unmatched string message: "%s"`, 
+				`Unmatched string message: "%s"`,
 				string(p.Data),
 			)
 		case *datachannel.PayloadBinary:
@@ -163,7 +162,7 @@ func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) 
 			}
 		default:
 			hs.errChan <- fmt.Errorf(
-				"Message with type %s from DataChannel has no payload", 
+				"Message with type %s from DataChannel has no payload",
 				p.PayloadType().String())
 		}
 	}
@@ -210,11 +209,11 @@ func (hs *hostSession) run() (err error) {
 	if err = hs.init(); err != nil {
 		return
 	}
-	colorstring.Printf("[bold]Setting up a WebRTTY connection.\n\n")
+	colorstring.Printf("[bold]Setting up a WebTTY connection.\n\n")
 	if hs.oneWay {
 		colorstring.Printf(
 			"Warning: One-way connections rely on a third party to connect. " +
-				"More info here: https://github.com/maxmcd/webrtty#one-way-connections\n\n")
+				"More info here: https://github.com/maxmcd/webtty#one-way-connections\n\n")
 	}
 
 	if err = hs.createOffer(); err != nil {
@@ -224,8 +223,8 @@ func (hs *hostSession) run() (err error) {
 	// Output the offer in base64 so we can paste it in browser
 	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
 	fmt.Printf("%s\n\n", sd.Encode(hs.offer))
-	colorstring.Printf(`[bold]Paste it in the terminal after the webrtty command` +
-		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webrtty/\n\n")
+	colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
+		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
 
 	if hs.oneWay == false {
 		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")

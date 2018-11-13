@@ -1,11 +1,12 @@
 {
-  "name": "webrtty",
+  "name": "webtty",
   "version": "0.0.1",
   "description": "",
   "main": "app.js",
   "scripts": {
     "build": "npm run go-build && parcel build src/index.html --public-url .",
-    "go-build": "mkdir -p ./dist/ && touch ./dist/foo && rm ./dist/* && GOOS=js GOARCH=wasm go build -o ./dist/main.wasm ./src",
+    "go-build":
+      "mkdir -p ./dist/ && touch ./dist/foo && rm ./dist/* && GOOS=js GOARCH=wasm go build -o ./dist/main.wasm ./src",
     "serve": "parcel serve src/index.html",
     "test": "echo notests",
     "deploy": "npm run build && gh-pages -d dist"

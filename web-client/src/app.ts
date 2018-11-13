@@ -62,7 +62,7 @@ term.fit();
 window.onresize = () => {
   term.fit();
 };
-term.write("Welcome to the WebRTTY web client.\n\r");
+term.write("Welcome to the WebTTY web client.\n\r");
 
 let pc = new RTCPeerConnection({
   iceServers: [
@@ -136,7 +136,7 @@ if (urlData != "") {
 }
 
 if (firstInput == false) {
-  term.write("Run webrtty and paste the offer message below:\n\r");
+  term.write("Run webtty and paste the offer message below:\n\r");
 }
 
 term.on("data", data => {

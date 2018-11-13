@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/kr/pty"
-	"github.com/maxmcd/webrtty/pkg/sd"
+	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
@@ -156,7 +156,6 @@ func (cs *clientSession) run() (err error) {
 
 	encodedAnswer := sd.Encode(answerSd)
 	if cs.offer.TenKbSiteLoc == "" {
-		// Get the LocalDescription and take it to base64 so we can paste in browser
 		fmt.Printf("Answer created. Send the following answer to the host:\n\n")
 		fmt.Println(encodedAnswer)
 	} else {

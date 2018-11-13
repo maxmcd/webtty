@@ -16,7 +16,7 @@ func main() {
 	_ = flag.Bool("cmd", false, "The command to run. Default is \"bash -l\"\n"+
 		"Because this flag consumes the remainder of the command line,\n"+
 		"all other args (if present) must appear before this flag.\n"+
-		"eg: webrtty -o -v -ni -cmd docker run -it --rm alpine:latest sh")
+		"eg: webtty -o -v -ni -cmd docker run -it --rm alpine:latest sh")
 	stunServer := flag.String("s", "stun:stun.l.google.com:19302", "The stun server to use")
 
 	cmd := []string{"bash", "-l"}
