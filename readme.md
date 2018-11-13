@@ -1,8 +1,8 @@
 ![](https://maxmcd.github.io/webtty/out.gif)
 
-# WebTTY
+## WebTTY
 
-WebTTY allows you to share a terminal session from your machine using WebRTC. You can pair with a friend without setting up a proxy server, debug servers behind NATs, and more. WebTTY also works in-browser. You can connect to a WebTTY session from this static page:  https://maxmcd.github.io/webtty/
+WebTTY allows you to share a terminal session from your machine using WebRTC. You can pair with a friend without setting up a proxy server, debug servers behind NATs, and more. WebTTY also works in-browser. You can connect to a WebTTY session from this static page:  [https://maxmcd.github.io/webtty/](https://maxmcd.github.io/webtty/)
 
 ### Status
 
@@ -12,7 +12,7 @@ There are a handful of bugs to fix, but everything works pretty well at the mome
 ```bash
 go get -u github.com/maxmcd/webtty
 ```
-WebTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for WebRTC communication. It currently requires OpenSSL to build. More here: https://github.com/pions/webrtc#install
+WebTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for WebRTC communication. It currently requires OpenSSL to build. More here: [https://github.com/pions/webrtc#install](https://github.com/pions/webrtc#install)
 
 ### Running
 
@@ -41,11 +41,12 @@ Setting up a WebTTY connection.
 Connection ready. Here is your connection data:
 
 25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTM4koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aL2M11kcUn9rzb4DX4...
-```
 
-Paste it in the terminal after the webtty command, or [in a browser](https://maxmcd.github.io/webtty/) (at `maxmcd.github.io/webtty/`).
+Paste it in the terminal after the webtty command
+Or in a browser: https://maxmcd.github.io/webtty/
 
 When you have the answer, paste it below and hit enter.
+```
 
 #### On the client computer
 
