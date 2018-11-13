@@ -32,22 +32,25 @@ Usage of webtty:
   -v    Verbose logging
 ```
 
+#### On the host computer
+
 ```shell
-# On the host computer
 > webtty
 Setting up a WebTTY connection.
 
 Connection ready. Here is your connection data:
 
 25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTM4koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aL2M11kcUn9rzb4DX4...
+```
 
-Paste it in the terminal after the webtty command
-Or in a browser: https://maxmcd.github.io/webtty/
+Paste it in the terminal after the webtty command, or [in a browser](https://maxmcd.github.io/webtty/) (at `maxmcd.github.io/webtty/`).
 
-When you have the answer, paste it below and hit enter:
-# On the client computer
-webtty 25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTM4koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aL2M11kcUn9rzb4DX4...
+When you have the answer, paste it below and hit enter.
 
+#### On the client computer
+
+```shell
+> webtty 25FrtDEjh7yuGdWMk7R9PhzPmphst7FdsotL11iXa4r9xyTM4koAauQYivKViWYBskf8habEc5vHf3DZge5VivuAT79uSCvzc6aL2M11kcUn9rzb4DX4...
 
 ```
 
