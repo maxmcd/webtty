@@ -9,6 +9,9 @@ WebTTY allows you to share a terminal session from your machine using WebRTC. Yo
 There are a handful of bugs to fix, but everything works pretty well at the moment. Please open an issue if you find a bug. 
 
 ### Installation
+
+WebTTY requires go version 1.9 or higher.
+
 ```bash
 go get -u github.com/maxmcd/webtty
 ```
