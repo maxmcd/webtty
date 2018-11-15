@@ -29,6 +29,8 @@ Usage of webtty:
   -non-interactive
         Set host to non-interactive
   -o    One-way connection with no response needed.
+  -s string
+        The stun server to use (default "stun:stun.l.google.com:19302")
   -v    Verbose logging
 ```
 
