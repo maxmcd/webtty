@@ -1,14 +1,13 @@
-FROM golang:1.11.2-stretch
+FROM golang:1.11.2-stretch as builder
 
-RUN apt-get update && \
- 	curl -sL https://deb.nodesource.com/setup_11.x | bash -\
-	&& apt-get install -y nodejs libssl-dev \
-	&& rm -rf /var/lib/apt/lists/*
+RUN curl -sL https://deb.nodesource.com/setup_11.x | bash -\
+	&& apt-get install -y --no-install-recommends nodejs libssl-dev
 
 RUN go get -u "github.com/maxmcd/webtty"
 
-add . /tmp
-RUN cd /tmp && npm install && npm run build
+COPY . /tmp
+WORKDIR /tmp
+RUN npm install && npm run build
 
 FROM nginx:alpine
-COPY --from=0 /tmp/dist /usr/share/nginx/html
+COPY --from=builder /tmp/dist /usr/share/nginx/html
