@@ -1,8 +1,13 @@
 {
   "name": "webtty",
-  "version": "0.0.1",
-  "description": "",
-  "main": "app.js",
+  "version": "0.0.2",
+  "description": "webtty web client",
+  "repository": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxmcd/webtty.git"
+  },
+  "main": "src/app.ts",
   "scripts": {
     "build": "npm run go-build && parcel build src/index.html --public-url .",
     "go-build":
@@ -11,8 +16,8 @@
     "test": "echo notests",
     "deploy": "npm run build && gh-pages -d dist"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Max McDonnell",
+  "license": "MIT",
   "dependencies": {
     "@babel/core": "^7.1.5",
     "@babel/runtime-corejs2": "^7.1.5",
