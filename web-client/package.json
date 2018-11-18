@@ -2,7 +2,6 @@
   "name": "webtty",
   "version": "0.0.2",
   "description": "webtty web client",
-  "repository": "",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/maxmcd/webtty.git"

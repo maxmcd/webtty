@@ -1,4 +1,4 @@
-FROM maxmcd/webtty-node-go as builder
+FROM maxmcd/webtty-node-go:latest as builder
 
 COPY . .
 RUN go get -v . \
