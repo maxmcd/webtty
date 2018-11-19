@@ -110,10 +110,8 @@ func (cs *clientSession) run() (err error) {
 		return
 	}
 
-	cs.dc.Lock()
-	cs.dc.OnOpen = cs.dataChannelOnOpen()
-	cs.dc.Onmessage = cs.dataChannelOnMessage()
-	cs.dc.Unlock()
+	cs.dc.OnOpen(cs.dataChannelOnOpen())
+	cs.dc.OnMessage(cs.dataChannelOnMessage())
 
 	if cs.offer, err = sd.Decode(cs.offerString); err != nil {
 		log.Println(err)

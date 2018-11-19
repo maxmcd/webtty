@@ -171,10 +171,8 @@ func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) 
 func (hs *hostSession) onDataChannel() func(dc *webrtc.RTCDataChannel) {
 	return func(dc *webrtc.RTCDataChannel) {
 		hs.dc = dc
-		dc.Lock()
-		defer dc.Unlock()
-		dc.OnOpen = hs.dataChannelOnOpen()
-		dc.Onmessage = hs.dataChannelOnMessage()
+		dc.OnOpen(hs.dataChannelOnOpen())
+		dc.OnMessage(hs.dataChannelOnMessage())
 	}
 }
 
@@ -186,7 +184,7 @@ func (hs *hostSession) mustReadStdin() (string, error) {
 }
 
 func (hs *hostSession) createOffer() (err error) {
-	hs.pc.OnDataChannel = hs.onDataChannel()
+	hs.pc.OnDataChannel(hs.onDataChannel())
 
 	// Create an offer to send to the browser
 	offer, err := hs.pc.CreateOffer(nil)

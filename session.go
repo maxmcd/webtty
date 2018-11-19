@@ -80,8 +80,8 @@ func (s *session) createPeerConnection() (err error) {
 	// if s.pc.OnDataChannel == nil {
 	// 	return errors.New("Couldn't create a peerConnection")
 	// }
-	s.pc.OnICEConnectionStateChange = func(connectionState ice.ConnectionState) {
+	s.pc.OnICEConnectionStateChange(func(connectionState ice.ConnectionState) {
 		log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
-	}
+	})
 	return
 }

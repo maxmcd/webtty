@@ -15,8 +15,12 @@ jobs:
           name: run go tests
           command: |
             set -e
-            go get -v .
-            go get golang.org/x/lint/golint
+            go get -u github.com/mitchellh/colorstring
+            go get -u github.com/pions/webrtc
+            go get -u github.com/kr/pty
+            go get -u golang.org/x/crypto/ssh/terminal
+            go get -u github.com/btcsuite/btcutil/base58
+            go get -u golang.org/x/lint/golint
             golint
             go test
             go test ./pkg/sd
