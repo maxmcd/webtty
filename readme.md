@@ -17,6 +17,8 @@ go get -u github.com/maxmcd/webtty
 ```
 WebTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for WebRTC communication. It currently requires OpenSSL to build. More here: [https://github.com/pions/webrtc#install](https://github.com/pions/webrtc#install)
 
+There were recent breaking api changes in the pions/webrtc library. Make sure to run `go get -u github.com/pions/webrtc` if you're running into any installation errors. 
+
 ### Running
 
 ```shell
@@ -80,4 +82,3 @@ I think this somewhat violates the spirit of this tool because it relies on a th
 SDP descriptions are encrypted when uploaded and encryption keys are shared with the connection data to decrypt. So presumably the service being compromised is not problematic.
 
 Very open to any ideas on how to enable trusted one-way connections. Please open an issue or reach out if you have thoughts. For now, the `-o` flag will print a warning and link to this explanation. 
-
