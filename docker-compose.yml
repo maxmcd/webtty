@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: maxmcd/webtty-node-go
+    image: maxmcd/webtty-node-go:latest
   web-client:
     build: 
       context: .

@@ -1,4 +1,4 @@
-![](https://maxmcd.github.io/webtty/out.gif)
+![](https://raw.githubusercontent.com/maxmcd/webtty/70f7911f4e69dffe3eb3cfd6ad9dd8060dc10dd5/out.gif)
 
 ## WebTTY
 
