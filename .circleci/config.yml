@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: maxmcd/webtty-node-go:latest
+      - image: maxmcd/webtty-node-go:no-libssl
     working_directory: /go/src/github.com/maxmcd/webtty
     steps:
       - restore_cache:
