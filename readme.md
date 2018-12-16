@@ -15,7 +15,6 @@ WebTTY requires go version 1.9 or higher.
 ```bash
 go get -u github.com/maxmcd/webtty
 ```
-WebTTY uses the wonderful [pions/webrtc](https://github.com/pions/webrtc) for WebRTC communication. It currently requires OpenSSL to build. More here: [https://github.com/pions/webrtc#install](https://github.com/pions/webrtc#install)
 
 There were recent breaking api changes in the pions/webrtc library. Make sure to run `go get -u github.com/pions/webrtc` if you're running into any installation errors. 
 
