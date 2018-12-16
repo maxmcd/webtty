@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: maxmcd/webtty-node-go:latest
+    image: maxmcd/webtty-node-go:no-libssl
   web-client:
     build: 
       context: .
