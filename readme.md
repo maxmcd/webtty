@@ -10,7 +10,9 @@ There are a handful of bugs to fix, but everything works pretty well at the mome
 
 ### Installation
 
-WebTTY requires go version 1.9 or higher.
+Download a binary from the releases page: https://github.com/maxmcd/webtty/releases
+
+Or, install directly with Go. WebTTY requires go version 1.9 or higher.
 
 ```bash
 go get -u github.com/maxmcd/webtty

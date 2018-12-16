@@ -11,6 +11,8 @@ github.com/pions/pkg v0.0.0-20181115215726-b60cd756f712 h1:ciXO7F7PusyAzW/EZJt01
 github.com/pions/pkg v0.0.0-20181115215726-b60cd756f712/go.mod h1:r9wKZs+Xxv2acLspex4CHQiIhFjGK1zGP+nUm/8klXA=
 github.com/pions/webrtc v1.1.1 h1:yVDoXk2sbaJJXIkW79IME2MRg0y/lT4zjOFI+EV0pQI=
 github.com/pions/webrtc v1.1.1/go.mod h1:sQhy8101lrrfMDzn8H/9YoCJDLzAgpT05HKVeyupaak=
+github.com/pions/webrtc v1.1.2-0.20181205040827-70592e40f97d h1:QJZMe/T+T/uq5LrwjLstpihM1p7Nw/3jwMXaN3CUV4A=
+github.com/pions/webrtc v1.1.2-0.20181205040827-70592e40f97d/go.mod h1:6N2qMMzi6f4OyNlMR51fkIm9O57eg9HzRBesjOidP84=
 github.com/pions/webrtc v1.1.2-0.20181212142319-7cc44ba79bba h1:2TmSfn1ghKFSDCpcUuNTpZq7Jd7dEO8R5TkRbcSctME=
 github.com/pions/webrtc v1.1.2-0.20181212142319-7cc44ba79bba/go.mod h1:6N2qMMzi6f4OyNlMR51fkIm9O57eg9HzRBesjOidP84=
 github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
