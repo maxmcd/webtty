@@ -5,9 +5,7 @@ import (
 	"os"
 
 	"github.com/maxmcd/webtty/pkg/sd"
-	"github.com/pions/webrtc"
-	"github.com/pions/webrtc/pkg/datachannel"
-	"github.com/pions/webrtc/pkg/ice"
+	"github.com/pion/webrtc/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -17,10 +15,10 @@ type session struct {
 	stunServers      []string
 	errChan          chan error
 	isTerminal       bool
-	pc               *webrtc.RTCPeerConnection
+	pc               *webrtc.PeerConnection
 	offer            sd.SessionDescription
 	answer           sd.SessionDescription
-	dc               *webrtc.RTCDataChannel
+	dc               *webrtc.DataChannel
 }
 
 func (s *session) init() (err error) {
@@ -36,7 +34,7 @@ func (s *session) init() (err error) {
 func (s *session) cleanup() {
 	if s.dc != nil {
 		// TODO: check dc state?
-		if err := s.dc.Send(datachannel.PayloadString{Data: []byte("quit")}); err != nil {
+		if err := s.dc.SendText("quit"); err != nil {
 			log.Println(err)
 		}
 	}
@@ -62,14 +60,14 @@ func (s *session) makeRawTerminal() error {
 }
 
 func (s *session) createPeerConnection() (err error) {
-	config := webrtc.RTCConfiguration{
-		IceServers: []webrtc.RTCIceServer{
+	config := webrtc.Configuration{
+		ICEServers: []webrtc.ICEServer{
 			{
 				URLs: s.stunServers,
 			},
 		},
 	}
-	s.pc, err = webrtc.New(config)
+	s.pc, err = webrtc.NewPeerConnection(config)
 	if err != nil {
 		return
 	}
@@ -80,7 +78,7 @@ func (s *session) createPeerConnection() (err error) {
 	// if s.pc.OnDataChannel == nil {
 	// 	return errors.New("Couldn't create a peerConnection")
 	// }
-	s.pc.OnICEConnectionStateChange(func(connectionState ice.ConnectionState) {
+	s.pc.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
 	})
 	return
