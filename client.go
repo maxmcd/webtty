@@ -11,18 +11,17 @@ import (
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
-	"github.com/pions/webrtc"
-	"github.com/pions/webrtc/pkg/datachannel"
+	"github.com/pion/webrtc/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 type clientSession struct {
 	session
-	dc          *webrtc.RTCDataChannel
+	dc          *webrtc.DataChannel
 	offerString string
 }
 
-func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error {
+func sendTermSize(term *os.File, dcSend func(s string) error) error {
 	winSize, err := pty.GetsizeFull(term)
 	if err != nil {
 		log.Fatal(err)
@@ -30,12 +29,12 @@ func sendTermSize(term *os.File, dcSend func(p datachannel.Payload) error) error
 	size := fmt.Sprintf(`["set_size",%d,%d,%d,%d]`,
 		winSize.Rows, winSize.Cols, winSize.X, winSize.Y)
 
-	return dcSend(datachannel.PayloadString{Data: []byte(size)})
+	return dcSend(size)
 }
 
 func (cs *clientSession) dataChannelOnOpen() func() {
 	return func() {
-		log.Printf("Data channel '%s'-'%d'='%d' open.\n", cs.dc.Label, cs.dc.ID, *cs.dc.MaxPacketLifeTime)
+		log.Printf("Data channel '%s'-'%d'='%d' open.\n", cs.dc.Label(), cs.dc.ID(), cs.dc.MaxPacketLifeTime())
 		colorstring.Println("[bold]Terminal session started:")
 
 		if err := cs.makeRawTerminal(); err != nil {
@@ -47,7 +46,7 @@ func (cs *clientSession) dataChannelOnOpen() func() {
 		signal.Notify(ch, syscall.SIGWINCH)
 		go func() {
 			for range ch {
-				err := sendTermSize(os.Stdin, cs.dc.Send)
+				err := sendTermSize(os.Stdin, cs.dc.SendText)
 				if err != nil {
 					log.Println(err)
 					cs.errChan <- err
@@ -62,7 +61,7 @@ func (cs *clientSession) dataChannelOnOpen() func() {
 				log.Println(err)
 				cs.errChan <- err
 			}
-			err = cs.dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]})
+			err = cs.dc.Send(buf[0:nr])
 			if err != nil {
 				log.Println(err)
 				cs.errChan <- err
@@ -71,10 +70,9 @@ func (cs *clientSession) dataChannelOnOpen() func() {
 	}
 }
 
-func (cs *clientSession) dataChannelOnMessage() func(payload datachannel.Payload) {
-	return func(payload datachannel.Payload) {
-		switch p := payload.(type) {
-		case *datachannel.PayloadString:
+func (cs *clientSession) dataChannelOnMessage() func(payload webrtc.DataChannelMessage) {
+	return func(p webrtc.DataChannelMessage) {
+		if p.IsString {
 			if string(p.Data) == "quit" {
 				if cs.isTerminal {
 					terminal.Restore(int(os.Stdin.Fd()), cs.oldTerminalState)
@@ -83,14 +81,10 @@ func (cs *clientSession) dataChannelOnMessage() func(payload datachannel.Payload
 				return
 			}
 			cs.errChan <- fmt.Errorf(`Unmatched string message: "%s"`, string(p.Data))
-		case *datachannel.PayloadBinary:
+		} else {
 			f := bufio.NewWriter(os.Stdout)
 			f.Write(p.Data)
 			f.Flush()
-		default:
-			cs.errChan <- fmt.Errorf(
-				"Message with type %s from DataChannel has no payload",
-				p.PayloadType().String())
 		}
 	}
 }
@@ -102,7 +96,7 @@ func (cs *clientSession) run() (err error) {
 
 	maxPacketLifeTime := uint16(1000) // Arbitrary
 	ordered := true
-	if cs.dc, err = cs.pc.CreateDataChannel("data", &webrtc.RTCDataChannelInit{
+	if cs.dc, err = cs.pc.CreateDataChannel("data", &webrtc.DataChannelInit{
 		Ordered:           &ordered,
 		MaxPacketLifeTime: &maxPacketLifeTime,
 	}); err != nil {
@@ -123,9 +117,9 @@ func (cs *clientSession) run() (err error) {
 			return
 		}
 	}
-	offer := webrtc.RTCSessionDescription{
-		Type: webrtc.RTCSdpTypeOffer,
-		Sdp:  cs.offer.Sdp,
+	offer := webrtc.SessionDescription{
+		Type: webrtc.SDPTypeOffer,
+		SDP:  cs.offer.Sdp,
 	}
 
 	if err = cs.pc.SetRemoteDescription(offer); err != nil {
@@ -138,8 +132,15 @@ func (cs *clientSession) run() (err error) {
 		log.Println(err)
 		return
 	}
+
+	err = cs.pc.SetLocalDescription(answer)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
 	answerSd := sd.SessionDescription{
-		Sdp:   answer.Sdp,
+		Sdp:   answer.SDP,
 		Key:   cs.offer.Key,
 		Nonce: cs.offer.Nonce,
 	}

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/kr/pty"
-	"github.com/pions/webrtc/pkg/datachannel"
+	"github.com/pion/webrtc/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -18,8 +18,8 @@ func TestClientDataChannelOnMessage(t *testing.T) {
 	cs.errChan = make(chan error, 1)
 	cs.oldTerminalState = &terminal.State{}
 	onMessage := cs.dataChannelOnMessage()
-	quitPayload := datachannel.PayloadString{Data: []byte("quit")}
-	onMessage(&quitPayload)
+	quitPayload := webrtc.DataChannelMessage{IsString: true, Data: []byte("quit")}
+	onMessage(quitPayload)
 
 	select {
 	case err := <-cs.errChan:
@@ -33,8 +33,8 @@ func TestClientDataChannelOnMessage(t *testing.T) {
 	stdoutMock := tmpFile()
 	stdout := os.Stdout
 	os.Stdout = stdoutMock
-	binaryPayload := datachannel.PayloadBinary{Data: []byte("s")}
-	onMessage(&binaryPayload)
+	binaryPayload := webrtc.DataChannelMessage{IsString: false, Data: []byte("s")}
+	onMessage(binaryPayload)
 	os.Stdout = stdout
 	stdoutMock.Seek(0, 0)
 	msg, _ := ioutil.ReadAll(stdoutMock)
@@ -61,36 +61,30 @@ func TestSendTermSize(t *testing.T) {
 		t.Error(err)
 	}
 
-	dcSend := func(payload datachannel.Payload) error {
-		switch p := payload.(type) {
-		case datachannel.PayloadString:
-			onMessage, hs := makeShPty(t)
-			size, err := pty.GetsizeFull(hs.ptmx)
+	dcSend := func(msg string) error {
+		onMessage, hs := makeShPty(t)
+		size, err := pty.GetsizeFull(hs.ptmx)
+		if err != nil {
+			t.Error(err)
+		}
+		if fmt.Sprintf("%v", size) != "&{0 0 0 0}" {
+			t.Error("wrong size", size)
+		}
+		onMessage(webrtc.DataChannelMessage{IsString: true, Data: []byte(msg)})
+		select {
+		case err := <-hs.errChan:
 			if err != nil {
 				t.Error(err)
-			}
-			if fmt.Sprintf("%v", size) != "&{0 0 0 0}" {
-				t.Error("wrong size", size)
-			}
-			onMessage(&datachannel.PayloadString{Data: p.Data})
-			select {
-			case err := <-hs.errChan:
-				if err != nil {
-					t.Error(err)
-				}
-			default:
-
-			}
-			size, err = pty.GetsizeFull(hs.ptmx)
-			if err != nil {
-				t.Error(err)
-			}
-			if fmt.Sprintf("%v", size) != "&{19 29 9 8}" {
-				t.Error("wrong size", size)
 			}
 		default:
-			fmt.Println(p.PayloadType().String())
-			t.Error("Should have matched")
+
+		}
+		size, err = pty.GetsizeFull(hs.ptmx)
+		if err != nil {
+			t.Error(err)
+		}
+		if fmt.Sprintf("%v", size) != "&{19 29 9 8}" {
+			t.Error("wrong size", size)
 		}
 		return nil
 	}

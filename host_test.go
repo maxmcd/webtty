@@ -8,15 +8,15 @@ import (
 	"testing"
 
 	"github.com/kr/pty"
-	"github.com/pions/webrtc/pkg/datachannel"
+	"github.com/pion/webrtc/v2"
 )
 
 func TestHosttDataChannelOnMessage(t *testing.T) {
 	hs := hostSession{ptmxReady: true}
 	hs.errChan = make(chan error, 1)
 	onMessage := hs.dataChannelOnMessage()
-	quitPayload := datachannel.PayloadString{Data: []byte("quit")}
-	onMessage(&quitPayload)
+	quitPayload := webrtc.DataChannelMessage{IsString: true, Data: []byte("quit")}
+	onMessage(quitPayload)
 
 	select {
 	case err := <-hs.errChan:
@@ -30,8 +30,8 @@ func TestHosttDataChannelOnMessage(t *testing.T) {
 	stdoutMock := tmpFile()
 	hs.ptmx = stdoutMock
 
-	binaryPayload := datachannel.PayloadBinary{Data: []byte("s")}
-	onMessage(&binaryPayload)
+	binaryPayload := webrtc.DataChannelMessage{IsString: false, Data: []byte("s")}
+	onMessage(binaryPayload)
 	stdoutMock.Seek(0, 0)
 	msg, _ := ioutil.ReadAll(stdoutMock)
 	if string(msg) != "s" {
@@ -40,7 +40,7 @@ func TestHosttDataChannelOnMessage(t *testing.T) {
 
 }
 
-func makeShPty(t *testing.T) (func(p datachannel.Payload), hostSession) {
+func makeShPty(t *testing.T) (func(p webrtc.DataChannelMessage), hostSession) {
 	hs := hostSession{ptmxReady: true}
 	hs.errChan = make(chan error, 1)
 	onMessage := hs.dataChannelOnMessage()
@@ -57,8 +57,8 @@ func makeShPty(t *testing.T) (func(p datachannel.Payload), hostSession) {
 func TestClientSetSizeOnMessage(t *testing.T) {
 	onMessage, hs := makeShPty(t)
 
-	sizeOnlyPayload := datachannel.PayloadString{Data: []byte(`["set_size", 20, 30]`)}
-	onMessage(&sizeOnlyPayload)
+	sizeOnlyPayload := webrtc.DataChannelMessage{IsString: true, Data: []byte(`["set_size", 20, 30]`)}
+	onMessage(sizeOnlyPayload)
 
 	size, err := pty.GetsizeFull(hs.ptmx)
 	if err != nil {
@@ -68,8 +68,8 @@ func TestClientSetSizeOnMessage(t *testing.T) {
 		t.Error("wrong size", size)
 	}
 
-	sizeAndCursorPayload := datachannel.PayloadString{Data: []byte(`["set_size", 20, 30, 10, 11]`)}
-	onMessage(&sizeAndCursorPayload)
+	sizeAndCursorPayload := webrtc.DataChannelMessage{IsString: true, Data: []byte(`["set_size", 20, 30, 10, 11]`)}
+	onMessage(sizeAndCursorPayload)
 
 	size, err = pty.GetsizeFull(hs.ptmx)
 	if err != nil {

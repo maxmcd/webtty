@@ -14,8 +14,7 @@ import (
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
-	"github.com/pions/webrtc"
-	"github.com/pions/webrtc/pkg/datachannel"
+	"github.com/pion/webrtc/v2"
 )
 
 type hostSession struct {
@@ -83,7 +82,7 @@ func (hs *hostSession) dataChannelOnOpen() func() {
 					return
 				}
 			}
-			if err = hs.dc.Send(datachannel.PayloadBinary{Data: buf[0:nr]}); err != nil {
+			if err = hs.dc.Send(buf[0:nr]); err != nil {
 				log.Println(err)
 				hs.errChan <- err
 				return
@@ -92,8 +91,8 @@ func (hs *hostSession) dataChannelOnOpen() func() {
 	}
 }
 
-func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) {
-	return func(payload datachannel.Payload) {
+func (hs *hostSession) dataChannelOnMessage() func(payload webrtc.DataChannelMessage) {
+	return func(p webrtc.DataChannelMessage) {
 
 		// OnMessage can fire before onOpen
 		// Let's wait for the pty session to be ready
@@ -101,8 +100,7 @@ func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) 
 			time.Sleep(1 * time.Millisecond)
 		}
 
-		switch p := payload.(type) {
-		case *datachannel.PayloadString:
+		if p.IsString {
 			if len(p.Data) > 2 && p.Data[0] == '[' && p.Data[1] == '"' {
 				var msg []string
 				err := json.Unmarshal(p.Data, &msg)
@@ -154,22 +152,18 @@ func (hs *hostSession) dataChannelOnMessage() func(payload datachannel.Payload) 
 				`Unmatched string message: "%s"`,
 				string(p.Data),
 			)
-		case *datachannel.PayloadBinary:
+		} else {
 			_, err := hs.ptmx.Write(p.Data)
 			if err != nil {
 				log.Println(err)
 				hs.errChan <- err
 			}
-		default:
-			hs.errChan <- fmt.Errorf(
-				"Message with type %s from DataChannel has no payload",
-				p.PayloadType().String())
 		}
 	}
 }
 
-func (hs *hostSession) onDataChannel() func(dc *webrtc.RTCDataChannel) {
-	return func(dc *webrtc.RTCDataChannel) {
+func (hs *hostSession) onDataChannel() func(dc *webrtc.DataChannel) {
+	return func(dc *webrtc.DataChannel) {
 		hs.dc = dc
 		dc.OnOpen(hs.dataChannelOnOpen())
 		dc.OnMessage(hs.dataChannelOnMessage())
@@ -192,8 +186,15 @@ func (hs *hostSession) createOffer() (err error) {
 		log.Println(err)
 		return
 	}
+
+	err = hs.pc.SetLocalDescription(offer)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
 	hs.offer = sd.SessionDescription{
-		Sdp: offer.Sdp,
+		Sdp: offer.SDP,
 	}
 	if hs.oneWay {
 		hs.offer.GenKeys()
@@ -255,9 +256,9 @@ func (hs *hostSession) run() (err error) {
 
 func (hs *hostSession) setHostRemoteDescriptionAndWait() (err error) {
 	// Set the remote SessionDescription
-	answer := webrtc.RTCSessionDescription{
-		Type: webrtc.RTCSdpTypeAnswer,
-		Sdp:  hs.answer.Sdp,
+	answer := webrtc.SessionDescription{
+		Type: webrtc.SDPTypeAnswer,
+		SDP:  hs.answer.Sdp,
 	}
 
 	// Apply the answer as the remote description

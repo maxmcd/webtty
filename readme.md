@@ -6,7 +6,7 @@ WebTTY allows you to share a terminal session from your machine using WebRTC. Yo
 
 ### Status
 
-There are a handful of bugs to fix, but everything works pretty well at the moment. Please open an issue if you find a bug. 
+There are a handful of bugs to fix, but everything works pretty well at the moment. Please open an issue if you find a bug.
 
 ### Installation
 
@@ -18,12 +18,12 @@ Or, install directly with Go. WebTTY requires go version 1.9 or higher.
 go get -u github.com/maxmcd/webtty
 ```
 
-There were recent breaking api changes in the pions/webrtc library. Make sure to run `go get -u github.com/pions/webrtc` if you're running into any installation errors. 
+There were recent breaking api changes in the pion/webrtc library. Make sure to run `go get -u github.com/pion/webrtc` if you're running into any installation errors.
 
 ### Running
 
 ```shell
-> webtty -h 
+> webtty -h
 Usage of webtty:
   -cmd
         The command to run. Default is "bash -l"
@@ -67,7 +67,7 @@ When you have the answer, paste it below and hit enter.
 
 By default WebTTY forces the size of the client terminal. This means the host size can frequently render incorrectly. One way you can fix this is by using tmux:
 
-```bash 
+```bash
 tmux new-session -s shared
 # in another terminal
 webtty -ni -cmd tmux attach-session -t shared
@@ -82,4 +82,4 @@ I think this somewhat violates the spirit of this tool because it relies on a th
 
 SDP descriptions are encrypted when uploaded and encryption keys are shared with the connection data to decrypt. So presumably the service being compromised is not problematic.
 
-Very open to any ideas on how to enable trusted one-way connections. Please open an issue or reach out if you have thoughts. For now, the `-o` flag will print a warning and link to this explanation. 
+Very open to any ideas on how to enable trusted one-way connections. Please open an issue or reach out if you have thoughts. For now, the `-o` flag will print a warning and link to this explanation.

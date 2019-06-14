@@ -1,11 +1,11 @@
 module github.com/maxmcd/webtty
 
+go 1.12
+
 require (
-	github.com/btcsuite/btcutil v0.0.0-20180706230648-ab6388e0c60a
-	github.com/kr/pty v1.1.3
-	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
-	github.com/pions/webrtc v1.1.2-0.20181205040827-70592e40f97d
-	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
-	golang.org/x/net v0.0.0-20181213202711-891ebc4b82d6 // indirect
-	golang.org/x/sys v0.0.0-20181213200352-4d1cda033e06 // indirect
+	github.com/btcsuite/btcutil v0.0.0-20190316010144-3ac1210f4b38
+	github.com/kr/pty v1.1.4
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
+	github.com/pion/webrtc/v2 v2.0.15
+	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a
 )
