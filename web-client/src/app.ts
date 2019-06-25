@@ -21,6 +21,14 @@ if (!WebAssembly.instantiateStreaming) {
   };
 }
 
+function waitForDecode() {
+  if(typeof decode !== "undefined"){
+    startSession(urlData);
+  } else {
+    setTimeout(waitForDecode, 250);
+  }
+}
+
 const go = new Go();
 WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(
   result => {
@@ -136,7 +144,7 @@ const urlData = window.location.hash.substr(1);
 console.log(urlData);
 if (urlData != "") {
   try {
-    startSession(urlData);
+    waitForDecode();
     firstInput = true;
   } catch (err) {
     console.log(err);
