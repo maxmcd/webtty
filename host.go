@@ -225,8 +225,11 @@ func (hs *hostSession) run() (err error) {
 	colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
 		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
 
-	if hs.oneWay == false {
-		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")
+	if !hs.oneWay {
+		if _, err = colorstring.Println("[bold]When you have the answer, paste it below and hit enter:"); err != nil {
+			log.Println(err)
+			return
+		}
 		// Wait for the answer to be pasted
 		hs.answer.Sdp, err = hs.mustReadStdin()
 		if err != nil {
