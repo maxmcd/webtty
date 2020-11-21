@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
@@ -221,9 +225,32 @@ func (hs *hostSession) run() (err error) {
 
 	// Output the offer in base64 so we can paste it in browser
 	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
-	fmt.Printf("%s\n\n", sd.Encode(hs.offer))
+
+	var data = strings.NewReader(sd.Encode(hs.offer))
+	uuid := strings.Replace(uuid.New().String(), "-", "", -1)
+	url := fmt.Sprintf("https://up.10kb.site/%s", uuid)
+	req, err := http.NewRequest("POST", url, data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := &http.Client{}
+	req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s\n\n", uuid)
+	// fmt.Printf("%s\n\n", sd.Encode(hs.offer))
+
 	colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
-		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
+		"\n")
 
 	if hs.oneWay == false {
 		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")

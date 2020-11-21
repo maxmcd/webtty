@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -107,7 +109,28 @@ func (cs *clientSession) run() (err error) {
 	cs.dc.OnOpen(cs.dataChannelOnOpen())
 	cs.dc.OnMessage(cs.dataChannelOnMessage())
 
-	if cs.offer, err = sd.Decode(cs.offerString); err != nil {
+	offerText := cs.offerString
+	if len(cs.offerString) == 32 {
+		url := fmt.Sprintf("https://www.10kb.site/%s", cs.offerString)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		client := &http.Client{}
+		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bodyText, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		offerText = fmt.Sprintf("%s", bodyText)
+	}
+
+	if cs.offer, err = sd.Decode(fmt.Sprintf("%s", offerText)); err != nil {
 		log.Println(err)
 		return
 	}
@@ -164,5 +187,6 @@ func (cs *clientSession) run() (err error) {
 	}
 	err = <-cs.errChan
 	cs.cleanup()
+	os.Exit(1)
 	return err
 }

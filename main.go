@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -18,6 +20,17 @@ func main() {
 		"all other args (if present) must appear before this flag.\n"+
 		"eg: webtty -o -v -ni -cmd docker run -it --rm alpine:latest sh")
 	stunServer := flag.String("s", "stun:stun.l.google.com:19302", "The stun server to use")
+
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	go func() {
+		_ = <-sigc
+		os.Exit(0)
+	}()
 
 	cmd := []string{"bash", "-l"}
 	for i, arg := range os.Args {
@@ -38,7 +51,6 @@ func main() {
 	if len(args) > 0 {
 		offerString = args[len(args)-1]
 	}
-
 	var err error
 	if len(offerString) == 0 {
 		hc := hostSession{
