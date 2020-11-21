@@ -245,18 +245,21 @@ func (hs *hostSession) run() (err error) {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("%s\n\n", connection_uuid)
-	}
+		// Output the offer in base64 so we can paste it in browser
+		colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
 
-	// Output the offer in base64 so we can paste it in browser
-	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
+		fmt.Printf("%s\n\n", connection_uuid)
+		colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
+			"\n")
+	}
 
 	if connection_uuid == "" {
+		// Output the offer in base64 so we can paste it in browser
+		colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
 		fmt.Printf("%s\n\n", sd.Encode(hs.offer))
+		colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
+			"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
 	}
-
-	colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
-		"\n")
 
 	if hs.oneWay == false {
 		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")
