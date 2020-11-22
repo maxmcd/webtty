@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -225,25 +223,8 @@ func (hs *hostSession) run() (err error) {
 				"More info here: https://github.com/maxmcd/webtty#one-way-connections\n\n")
 
 		// send SDP to 10kb.site
-		var data = strings.NewReader(sd.Encode(hs.offer))
 		connection_uuid = strings.Replace(uuid.New().String(), "-", "", -1)
-		url := fmt.Sprintf("https://up.10kb.site/%s", connection_uuid)
-		req, err := http.NewRequest("POST", url, data)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		client := &http.Client{}
-		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		_, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
+		create10kbFile(connection_uuid, sd.Encode(hs.offer))
 
 		// Output the offer in base64 so we can paste it in browser
 		colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")

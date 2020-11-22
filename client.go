@@ -3,9 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,6 +14,8 @@ import (
 	"github.com/pion/webrtc/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+const UUID_CONNECTION_STRING_LENGTH int = 32
 
 type clientSession struct {
 	session
@@ -110,24 +110,18 @@ func (cs *clientSession) run() (err error) {
 	cs.dc.OnMessage(cs.dataChannelOnMessage())
 
 	offerText := cs.offerString
-	if len(cs.offerString) == 32 {
-		url := fmt.Sprintf("https://www.10kb.site/%s", cs.offerString)
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			log.Fatal(err)
+	if len(offerText) == UUID_CONNECTION_STRING_LENGTH {
+		status_code, body, post_err := read10kbFile(offerText)
+		if post_err != nil {
+			log.Println("Post error in creating10KbFile", post_err)
+			return
 		}
+		if status_code != 200 {
+			log.Println("Server returned status code: ", status_code)
+			return
 
-		client := &http.Client{}
-		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatal(err)
 		}
-		bodyText, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		offerText = fmt.Sprintf("%s", bodyText)
+		offerText = body
 	}
 
 	if cs.offer, err = sd.Decode(fmt.Sprintf("%s", offerText)); err != nil {
@@ -187,6 +181,5 @@ func (cs *clientSession) run() (err error) {
 	}
 	err = <-cs.errChan
 	cs.cleanup()
-	os.Exit(1)
 	return err
 }

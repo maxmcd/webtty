@@ -29,7 +29,6 @@ func main() {
 		syscall.SIGQUIT)
 	go func() {
 		_ = <-sigc
-		os.Exit(0)
 	}()
 
 	cmd := []string{"bash", "-l"}
