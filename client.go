@@ -15,6 +15,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+const UUID_CONNECTION_STRING_LENGTH int = 32
+
 type clientSession struct {
 	session
 	dc          *webrtc.DataChannel
@@ -107,7 +109,22 @@ func (cs *clientSession) run() (err error) {
 	cs.dc.OnOpen(cs.dataChannelOnOpen())
 	cs.dc.OnMessage(cs.dataChannelOnMessage())
 
-	if cs.offer, err = sd.Decode(cs.offerString); err != nil {
+	offerText := cs.offerString
+	if len(offerText) == UUID_CONNECTION_STRING_LENGTH {
+		status_code, body, post_err := read10kbFile(offerText)
+		if post_err != nil {
+			log.Println("Post error in creating10KbFile", post_err)
+			return
+		}
+		if status_code != 200 {
+			log.Println("Server returned status code: ", status_code)
+			return
+
+		}
+		offerText = body
+	}
+
+	if cs.offer, err = sd.Decode(fmt.Sprintf("%s", offerText)); err != nil {
 		log.Println(err)
 		return
 	}

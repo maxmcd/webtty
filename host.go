@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
@@ -208,22 +210,37 @@ func (hs *hostSession) run() (err error) {
 	if err = hs.init(); err != nil {
 		return
 	}
+
+	var connection_uuid string = ""
+	if err = hs.createOffer(); err != nil {
+		return
+	}
+
 	colorstring.Printf("[bold]Setting up a WebTTY connection.\n\n")
 	if hs.oneWay {
 		colorstring.Printf(
 			"Warning: One-way connections rely on a third party to connect. " +
 				"More info here: https://github.com/maxmcd/webtty#one-way-connections\n\n")
+
+		// send SDP to 10kb.site
+		connection_uuid = strings.Replace(uuid.New().String(), "-", "", -1)
+		create10kbFile(connection_uuid, sd.Encode(hs.offer))
+
+		// Output the offer in base64 so we can paste it in browser
+		colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
+
+		fmt.Printf("%s\n\n", connection_uuid)
+		colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
+			"\n")
 	}
 
-	if err = hs.createOffer(); err != nil {
-		return
+	if connection_uuid == "" {
+		// Output the offer in base64 so we can paste it in browser
+		colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
+		fmt.Printf("%s\n\n", sd.Encode(hs.offer))
+		colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
+			"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
 	}
-
-	// Output the offer in base64 so we can paste it in browser
-	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
-	fmt.Printf("%s\n\n", sd.Encode(hs.offer))
-	colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
-		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
 
 	if hs.oneWay == false {
 		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")
