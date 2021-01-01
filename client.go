@@ -11,7 +11,7 @@ import (
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -133,14 +133,20 @@ func (cs *clientSession) run() (err error) {
 		return
 	}
 
+	// Create channel that is blocked until ICE Gathering is complete
+	gatherComplete := webrtc.GatheringCompletePromise(cs.pc)
+
 	err = cs.pc.SetLocalDescription(answer)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
+	// Block until ICE Gathering is complete
+	<-gatherComplete
+
 	answerSd := sd.SessionDescription{
-		Sdp:   answer.SDP,
+		Sdp:   cs.pc.LocalDescription().SDP,
 		Key:   cs.offer.Key,
 		Nonce: cs.offer.Nonce,
 	}
