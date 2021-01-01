@@ -22,6 +22,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache
+            **/node_modules
           key: ${{ runner.os }}-amd64-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-amd64-go-
@@ -31,8 +32,22 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Run main tests
-        run: go test -v -race
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '12'
 
-      - name: Run pkg tests
-        run: go test -v -race ./pkg/sd
+      - name: Run Go tests
+        run: go test -v -race . ./pkg/sd
+
+      - name: Install frontend deps
+        working-directory: ./web-client
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./web-client
+        run: npm run build
+
+      - name: Run frontend tests
+        working-directory: ./web-client
+        run: npm run test
