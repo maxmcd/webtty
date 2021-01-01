@@ -20,7 +20,7 @@
     "@babel/runtime-corejs2": "^7.12.5",
     "gh-pages": "^2.0.1",
     "parcel-bundler": "^1.10.3",
-    "xterm": "3.8.0"
+    "xterm": "3.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.12.10",
