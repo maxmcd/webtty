@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/maxmcd/webtty/pkg/sd"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 	"golang.org/x/crypto/ssh/terminal"
 )
 

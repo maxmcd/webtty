@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/kr/pty"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 func TestHosttDataChannelOnMessage(t *testing.T) {

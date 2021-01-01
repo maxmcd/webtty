@@ -14,7 +14,7 @@ import (
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type hostSession struct {
@@ -180,6 +180,13 @@ func (hs *hostSession) mustReadStdin() (string, error) {
 func (hs *hostSession) createOffer() (err error) {
 	hs.pc.OnDataChannel(hs.onDataChannel())
 
+	// Create unused DataChannel, the offer doesn't implictly have
+	// any media sections otherwise
+	if _, err = hs.pc.CreateDataChannel("offerer-channel", nil); err != nil {
+		log.Println(err)
+		return
+	}
+
 	// Create an offer to send to the browser
 	offer, err := hs.pc.CreateOffer(nil)
 	if err != nil {
@@ -187,14 +194,20 @@ func (hs *hostSession) createOffer() (err error) {
 		return
 	}
 
+	// Create channel that is blocked until ICE Gathering is complete
+	gatherComplete := webrtc.GatheringCompletePromise(hs.pc)
+
 	err = hs.pc.SetLocalDescription(offer)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
+	// Block until ICE Gathering is complete
+	<-gatherComplete
+
 	hs.offer = sd.SessionDescription{
-		Sdp: offer.SDP,
+		Sdp: hs.pc.LocalDescription().SDP,
 	}
 	if hs.oneWay {
 		hs.offer.GenKeys()
