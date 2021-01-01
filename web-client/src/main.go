@@ -17,7 +17,7 @@ var (
 	nonce string
 )
 
-func encode(i []js.Value) {
+func encode(this js.Value, i []js.Value) interface{} {
 	encoded, err := func() (string, string) {
 		answerSd := sd.SessionDescription{
 			Sdp:   i[0].String(),
@@ -37,9 +37,10 @@ func encode(i []js.Value) {
 		return sd.Encode(answerSd), ""
 	}()
 	i[1].Invoke(encoded, err)
+	return nil
 }
 
-func decode(i []js.Value) {
+func decode(this js.Value, i []js.Value) interface{} {
 	sdp, tkbsl, err := func() (string, string, string) {
 		offer, err := sd.Decode(i[0].String())
 		if err != nil {
@@ -55,9 +56,10 @@ func decode(i []js.Value) {
 		return offer.Sdp, offer.TenKbSiteLoc, ""
 	}()
 	i[1].Invoke(sdp, tkbsl, err)
+	return nil
 }
 
 func registerCallbacks() {
-	js.Global().Set("encode", js.NewCallback(encode))
-	js.Global().Set("decode", js.NewCallback(decode))
+	js.Global().Set("encode", js.FuncOf(encode))
+	js.Global().Set("decode", js.FuncOf(decode))
 }
