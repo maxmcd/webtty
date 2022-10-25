@@ -12,13 +12,13 @@ There are a handful of bugs to fix, but everything works pretty well at the mome
 
 Download a binary from the releases page: https://github.com/maxmcd/webtty/releases
 
-Or, install directly with Go. WebTTY requires go version 1.9 or higher.
+Or, install directly with Go. WebTTY requires go version 1.19 or higher.
 
 ```bash
-go get -u github.com/maxmcd/webtty
+go install github.com/maxmcd/webtty@latest
 ```
 
-There were recent breaking api changes in the pion/webrtc library. Make sure to run `go get -u github.com/pion/webrtc` if you're running into any installation errors.
+There were recent breaking api changes in the pion/webrtc library. Make sure to run `go install github.com/pion/webrtc@latest` if you're running into any installation errors.
 
 ### Running
 
@@ -39,6 +39,12 @@ Usage of webtty:
         The stun server to use (default "stun:stun.l.google.com:19302")
   -v    Verbose logging
 ```
+
+> If webtty is not recognised as a command: Make sure to the bin directory of the go installation to the PATH variable.
+> ```sh
+> # Add to .bashrc or your terminal's configuration file
+> export PATH=${PATH}:`go env GOPATH`/bin
+> ```
 
 #### On the host computer
 
