@@ -12,11 +12,18 @@ There are a handful of bugs to fix, but everything works pretty well at the mome
 
 Download a binary from the releases page: https://github.com/maxmcd/webtty/releases
 
-Or, install directly with Go. WebTTY requires go version 1.9 or higher.
+Or, install directly with Go. WebTTY requires Go version 1.9 or higher.
 
+For Go versions below 1.7:
+```bash
+go get -u github.com/maxmcd/webtty
+```
+
+For Go versions 1.7 and up:
 ```bash
 go install github.com/maxmcd/webtty@latest
 ```
+
 
 There were recent breaking api changes in the pion/webrtc library. Make sure to run `go get -u github.com/pion/webrtc` if you're running into any installation errors.
 
