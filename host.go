@@ -232,13 +232,12 @@ func (hs *hostSession) run() (err error) {
 		return
 	}
 
-	// Output the offer in base64 so we can paste it in browser
-	colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
-	fmt.Printf("%s\n\n", sd.Encode(hs.offer))
-	colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
-		"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
-
 	if hs.oneWay == false {
+		// Output the offer in base64 so we can paste it in browser
+		colorstring.Printf("[bold]Connection ready. Here is your connection data:\n\n")
+		fmt.Printf("%s\n\n", sd.Encode(hs.offer))
+		colorstring.Printf(`[bold]Paste it in the terminal after the webtty command` +
+			"\n[bold]Or in a browser: [reset]https://maxmcd.github.io/webtty/\n\n")
 		colorstring.Println("[bold]When you have the answer, paste it below and hit enter:")
 		// Wait for the answer to be pasted
 		hs.answer.Sdp, err = hs.mustReadStdin()
@@ -248,6 +247,7 @@ func (hs *hostSession) run() (err error) {
 		}
 		fmt.Println("Answer recieved, connecting...")
 	} else {
+		colorstring.Printf("[bold]Open in a browser: [reset]https://maxmcd.github.io/webtty/?key=%s\n\n", sd.Encode(hs.offer))
 		body, err := pollForResponse(hs.offer.TenKbSiteLoc)
 		if err != nil {
 			log.Println(err)
