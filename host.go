@@ -246,7 +246,7 @@ func (hs *hostSession) run() (err error) {
 			log.Println(err)
 			return
 		}
-		fmt.Println("Answer recieved, connecting...")
+		fmt.Println("Answer received, connecting...")
 	} else {
 		body, err := pollForResponse(hs.offer.TenKbSiteLoc)
 		if err != nil {
