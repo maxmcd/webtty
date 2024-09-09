@@ -155,11 +155,19 @@ if (firstInput == false) {
   term.write("Run webtty and paste the offer message below:\n\r");
 }
 
+const urlParams = new URLSearchParams(window.location.search);
+const key = urlParams.get('key');
+
 term.on("data", data => {
   if (!firstInput) {
     term.reset();
     try {
-      startSession(data);
+      if (key != null) {
+        startSession(key);
+      }
+      else {
+        startSession(data);
+      }
     } catch (err) {
       console.log(err);
       term.write(`There was an error with the offer: ${data}\n\r`);
