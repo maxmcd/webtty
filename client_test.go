@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/kr/pty"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 	"golang.org/x/crypto/ssh/terminal"
 )
 

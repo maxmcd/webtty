@@ -11,7 +11,7 @@ import (
 	"github.com/kr/pty"
 	"github.com/maxmcd/webtty/pkg/sd"
 	"github.com/mitchellh/colorstring"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 	"golang.org/x/crypto/ssh/terminal"
 )
 

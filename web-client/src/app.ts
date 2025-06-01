@@ -1,17 +1,18 @@
-import Terminal from "xterm/src/xterm.ts";
-import * as attach from "./attach.ts";
-import * as fullscreen from "xterm/src/addons/fullscreen/fullscreen.ts";
-import * as fit from "xterm/src/addons/fit/fit.ts";
+import { Terminal } from "@xterm/xterm";
+import { AttachAddon } from "./AttachAddon";
+import { FitAddon } from "@xterm/addon-fit";
 
-import "xterm/dist/xterm.css";
-import "xterm/dist/addons/fullscreen/fullscreen.css";
+import "@xterm/xterm/css/xterm.css";
 
 // imports "Go"
 import "./wasm_exec.js";
 
-Terminal.applyAddon(attach);
-Terminal.applyAddon(fullscreen);
-Terminal.applyAddon(fit);
+const term = new Terminal();
+
+var attachAddon : null | AttachAddon = null;
+
+const fitAddon = new FitAddon();
+term.loadAddon(fitAddon);
 
 // Polyfill for WebAssembly on Safari
 if (!WebAssembly.instantiateStreaming) {
@@ -71,12 +72,14 @@ const startSession = (data: string) => {
 
 let TenKbSiteLoc = null;
 
-const term = new Terminal();
 term.open(document.getElementById("terminal"));
-term.toggleFullScreen();
-term.fit();
+fitAddon.fit();
 window.onresize = () => {
-  term.fit();
+  fitAddon.fit();
+  if (attachAddon) {
+    const dimensions = fitAddon.proposeDimensions();
+    dimensions ? attachAddon.setSize(dimensions) : null;
+  }
 };
 term.write("Welcome to the WebTTY web client.\n\r");
 
@@ -96,7 +99,10 @@ let sendChannel = pc.createDataChannel("data");
 sendChannel.onclose = () => console.log("sendChannel has closed");
 sendChannel.onopen = () => {
   term.reset();
-  term.terminadoAttach(sendChannel);
+
+  attachAddon = new AttachAddon(sendChannel);
+  term.loadAddon(attachAddon);
+
   sendChannel.send(JSON.stringify(["set_size", term.rows, term.cols]));
   console.log("sendChannel has opened");
 };
@@ -155,7 +161,7 @@ if (firstInput == false) {
   term.write("Run webtty and paste the offer message below:\n\r");
 }
 
-term.on("data", data => {
+term.onData(data => {
   if (!firstInput) {
     term.reset();
     try {
